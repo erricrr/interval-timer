@@ -1,0 +1,22 @@
+{
+  "short_name": "TempoTread",
+  "name": "TempoTread Interval Timer",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/treadmill/192/192",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://picsum.photos/seed/treadmill/512/512",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#151619",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#F27D26",
+  "description": "Interval workout timer for treadmill runners."
+}
