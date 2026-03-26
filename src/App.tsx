@@ -45,7 +45,8 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
     | "danger"
     | "accent"
     | "solid"
-    | "white";
+    | "white"
+    | "upload";
   size?: "xs" | "sm" | "md" | "lg" | "icon";
 };
 
@@ -77,6 +78,8 @@ const Button = ({
     white: "bg-white text-bg hover:bg-white/90 border-none",
     danger:
       "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20",
+    upload:
+      "bg-accent text-bg hover:bg-accent/90 border-none shadow-lg shadow-accent/20",
   };
 
   const sizes = {
@@ -358,6 +361,7 @@ interface PlaylistDrawerProps {
   onUpdate: (updates: Partial<Interval>) => void;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveAudio: (id: string) => void;
+  isUploading?: boolean;
 }
 
 const PlaylistDrawer = ({
@@ -367,6 +371,7 @@ const PlaylistDrawer = ({
   onUpdate,
   onFileUpload,
   onRemoveAudio,
+  isUploading = false,
 }: PlaylistDrawerProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -477,12 +482,26 @@ const PlaylistDrawer = ({
                 Library
               </h3>
               <Button
-                variant="accent"
-                size="xs"
+                variant="upload"
+                size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-7 px-2 text-[9px]"
+                className="h-8 px-3 text-xs font-bold uppercase tracking-wider"
+                disabled={isUploading}
               >
-                <Upload size={10} /> Upload New
+                {isUploading ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="w-4 h-4 border-2 border-bg/30 border-t-bg rounded-full"
+                    />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload size={14} /> Upload New
+                  </>
+                )}
               </Button>
               <input
                 type="file"
@@ -593,6 +612,7 @@ export default function App() {
   const [savedWorkouts, setSavedWorkouts] = useState<
     { id: string; title: string; intervals: Interval[] }[]
   >([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Alarm settings state
   const [alarmVolume, setAlarmVolume] = useState(0.5);
@@ -778,6 +798,7 @@ export default function App() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
+      setIsUploading(true);
       const supportedExtensions = ['.mp3', '.wav', '.ogg', '.oga', '.ogv'];
       const unsupportedFiles: string[] = [];
       const supportedFiles: File[] = [];
@@ -804,6 +825,8 @@ export default function App() {
       } catch (err) {
         console.error("Failed to load audio:", err);
         alert("Failed to load audio file(s). Please ensure they are valid MP3, WAV, or OGG files.");
+      } finally {
+        setIsUploading(false);
       }
     }
   };
@@ -1103,7 +1126,7 @@ export default function App() {
                 className="w-full rounded-2xl py-3 font-black text-base uppercase tracking-[0.2em]"
               >
                 <Play size={20} fill="currentColor" />
-                LET'S GO!
+                Let's go!
               </Button>
             ) : state === "countdown" ? (
               <div className="glass p-6 lg:p-8 rounded-[2rem] flex flex-col justify-center items-center text-center min-h-[320px]">
@@ -1653,6 +1676,7 @@ export default function App() {
               onUpdate={(updates) => updateInterval(editingIntervalId, updates)}
               onFileUpload={handleFileUpload}
               onRemoveAudio={removeAudio}
+              isUploading={isUploading}
             />
           )}
         </AnimatePresence>
