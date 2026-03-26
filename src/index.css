@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #151619;
-  --color-accent: #F27D26;
-  --color-surface: #1E1F23;
-  --color-line: #2D2F36;
+  --color-bg: #1a1520;
+  --color-accent: #8b7aa8;
+  --color-surface: #252030;
+  --color-line: #3d3548;
   --font-mono: "JetBrains Mono", "Roboto Mono", monospace;
 }
 
 @layer base {
   body {
     @apply bg-bg text-white font-sans antialiased;
-    background-image: radial-gradient(circle at 50% -20%, #2D2F36 0%, #151619 100%);
+    background-image: radial-gradient(circle at 50% -20%, #2d2835 0%, #1a1520 100%);
     background-attachment: fixed;
   }
 }
