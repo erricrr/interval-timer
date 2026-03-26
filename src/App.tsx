@@ -4,6 +4,8 @@ import {
   AnimatePresence,
   Reorder,
   useDragControls,
+  useMotionValue,
+  useAnimation,
 } from "motion/react";
 import {
   Plus,
@@ -31,6 +33,8 @@ import {
   MoreVertical,
   Trash2,
   Volume2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup } from "./lib/utils";
 import { audioEngine } from "./lib/audio";
@@ -128,10 +132,48 @@ const IntervalCard = ({
   const dragControls = useDragControls();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const x = useMotionValue(0);
+  const controls = useAnimation();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const swipeThreshold = -80; // Threshold to snap open
+  const snapOpenX = -100; // How far the card slides to reveal buttons
+  const snapClosedX = 0;
+
   const mins = Math.floor(interval.duration / 60);
   const secs = interval.duration % 60;
 
   const isAnyMenuOpen = showColorPicker || showActions;
+
+  // Close swipe when clicking outside
+  useEffect(() => {
+    if (x.get() < -10) {
+      const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+        if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+          controls.start({ x: snapClosedX, transition: { type: "spring", stiffness: 500, damping: 30 } });
+        }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("touchstart", handleClickOutside);
+      };
+    }
+  }, [x.get(), controls]);
+
+  // Handle drag end - snap to open or closed
+  const handleDragEnd = (_: unknown, info: { offset: { x: number }; velocity: { x: number } }) => {
+    const currentX = x.get();
+    const velocity = info.velocity.x;
+
+    // If dragged past threshold or with high velocity to the left, snap open
+    if (currentX < swipeThreshold || (velocity < -500 && currentX < -20)) {
+      controls.start({ x: snapOpenX, transition: { type: "spring", stiffness: 500, damping: 30 } });
+    } else {
+      // Snap closed
+      controls.start({ x: snapClosedX, transition: { type: "spring", stiffness: 500, damping: 30 } });
+    }
+  };
 
   return (
     <Reorder.Item
@@ -141,214 +183,251 @@ const IntervalCard = ({
       transition={{ type: "spring", stiffness: 600, damping: 30 }}
       style={{ zIndex: isAnyMenuOpen ? 50 : 1, position: "relative" }}
       className={cn(
-        "glass rounded-2xl flex flex-row group hover:bg-white/[0.02] border border-white/5 overflow-hidden",
+        "glass rounded-2xl overflow-hidden",
         isAnyMenuOpen && "z-50",
       )}
       data-interval-id={interval.id}
     >
-      {/* Full Height Drag Handle */}
-      <div
-        onPointerDown={(e) => dragControls.start(e)}
-        className="w-10 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/10 hover:text-white/30 hover:bg-white/5 transition-all border-r border-white/5 shrink-0"
-      >
-        <GripVertical size={20} />
-      </div>
-
-      <div className="flex-1 p-3 sm:p-4 flex flex-col gap-2 relative">
-        {/* 3 Dot Menu - Absolute positioned top right */}
-        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowActions(!showActions)}
-            className="w-7 h-7 sm:w-8 sm:h-8 text-white/40 hover:text-white"
+      <div ref={cardRef} className="relative flex flex-row">
+        {/* Background Action Buttons - revealed on swipe */}
+        <div className="absolute inset-0 flex justify-end items-stretch">
+          <button
+            onClick={() => {
+              onDuplicate();
+              controls.start({ x: snapClosedX, transition: { type: "spring", stiffness: 500, damping: 30 } });
+            }}
+            className="w-[50px] sm:w-[60px] bg-white/10 hover:bg-white/20 flex flex-col items-center justify-center gap-1 transition-colors border-l border-white/5"
+            aria-label="Duplicate interval"
           >
-            <MoreVertical size={16} />
-          </Button>
-
-          <AnimatePresence>
-            {showActions && (
-              <>
-                <div
-                  className="fixed inset-0 z-[60]"
-                  onClick={() => setShowActions(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9, x: 5 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, x: 5 }}
-                  className="fixed z-[70] glass border border-white/10 rounded-xl p-1 w-36 overflow-hidden"
-                  style={{
-                    right: '44px',
-                    top: '8px',
-                  }}
-                >
-                  <button
-                    onClick={() => {
-                      onDuplicate();
-                      setShowActions(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left"
-                  >
-                    <Copy size={14} />
-                    Duplicate
-                  </button>
-                  <div className="h-px bg-white/5 mx-1" />
-                  <button
-                    onClick={() => {
-                      onDelete();
-                      setShowActions(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left"
-                  >
-                    <Trash2 size={14} />
-                    Remove
-                  </button>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+            <Copy size={20} className="text-white/70" />
+          </button>
+          <button
+            onClick={() => {
+              onDelete();
+              controls.start({ x: snapClosedX, transition: { type: "spring", stiffness: 500, damping: 30 } });
+            }}
+            className="w-[50px] sm:w-[60px] bg-red-500/20 hover:bg-red-500/30 flex flex-col items-center justify-center gap-1 transition-colors border-l border-white/5"
+            aria-label="Remove interval"
+          >
+            <Trash2 size={20} className="text-red-400" />
+          </button>
         </div>
 
-        {/* Main Row: Color | Title | Time */}
-        <div className="flex items-center gap-3 pr-10">
-          {/* Color Indicator & Picker */}
-          <div className="relative shrink-0">
-            <button
-              onClick={() => setShowColorPicker(!showColorPicker)}
-              className="w-1.5 h-8 sm:h-10 rounded-full shrink-0 shadow-lg transition-transform hover:scale-110 active:scale-95"
-              style={{
-                backgroundColor: interval.color,
-                boxShadow: `0 0 15px ${interval.color}40`,
-              }}
-              title="Change Color"
-            />
-
-            <AnimatePresence>
-              {showColorPicker && (
-                <>
-                  <div
-                    className="fixed inset-0 z-30"
-                    onClick={() => setShowColorPicker(false)}
-                  />
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9, x: -10 }}
-                    animate={{ opacity: 1, scale: 1, x: 0 }}
-                    exit={{ opacity: 0, scale: 0.9, x: -10 }}
-                      className="absolute left-full ml-3 -top-3 z-40 glass border border-white/10 rounded-xl p-2 grid grid-cols-5 gap-2 w-[160px]"
-                    >
-                    {COLORS.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => {
-                          onUpdate({ color });
-                          setShowColorPicker(false);
-                        }}
-                        className={cn(
-                          "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
-                          interval.color === color
-                            ? "border-white"
-                            : "border-transparent",
-                        )}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Title Input */}
-          <div className="flex-1 min-w-0">
-            <input
-              value={interval.name}
-              onChange={(e) => onUpdate({ name: e.target.value })}
-              placeholder="Interval Title"
-              className="bg-transparent border-none p-0 font-bold text-sm sm:text-base text-white/90 focus:ring-0 focus:outline-none w-full placeholder:text-white/10 truncate"
-            />
-          </div>
-
-          {/* Time Section */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <div className="flex items-center gap-0.5">
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={mins === 0 ? "" : mins.toString()}
-                placeholder="0"
-                onChange={(e) => {
-                  const val = Math.max(
-                    0,
-                    parseInt(e.target.value.replace(/\D/g, "")) || 0,
-                  );
-                  onUpdate({ duration: val * 60 + secs });
-                }}
-                className="w-8 sm:w-10 bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-right text-xl sm:text-2xl font-mono font-black text-white tabular-nums selection:bg-accent/30"
-              />
-              <span className="text-[8px] sm:text-[9px] font-black text-white/50 uppercase tracking-wider">
-                m
-              </span>
-            </div>
-            <span className="text-lg sm:text-xl font-mono text-white/20">
-              :
-            </span>
-            <div className="flex items-center gap-0.5">
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={secs === 0 ? "" : secs.toString()}
-                placeholder="0"
-                onChange={(e) => {
-                  let val = parseInt(e.target.value.replace(/\D/g, "")) || 0;
-                  if (val > 59) val = 59;
-                  if (val < 0) val = 0;
-                  onUpdate({ duration: mins * 60 + val });
-                }}
-                className="w-8 sm:w-10 bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-right text-xl sm:text-2xl font-mono font-black text-white tabular-nums selection:bg-accent/30"
-              />
-              <span className="text-[8px] sm:text-[9px] font-black text-white/50 uppercase tracking-wider">
-                s
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Section: Track Count & Actions */}
-        <div className="flex items-center gap-3 pt-2 border-t border-white/5">
+        {/* Swipeable Card Content */}
+        <motion.div
+          drag="x"
+          dragConstraints={{ left: -100, right: 0 }}
+          dragElastic={{ left: 0.1, right: 0 }}
+          onDragEnd={handleDragEnd}
+          animate={controls}
+          style={{ x }}
+          className="flex flex-1 flex-row bg-bg relative z-10 group"
+        >
+          {/* Full Height Drag Handle */}
           <div
-            className="flex items-center gap-2 text-[10px] font-mono"
-            style={{ color: (interval.playlist || []).length > 0 ? interval.color : 'rgba(255,255,255,0.4)' }}
+            onPointerDown={(e) => dragControls.start(e)}
+            className="w-10 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/10 hover:text-white/30 hover:bg-white/5 transition-all border-r border-white/5 shrink-0 touch-none"
           >
-            <Music size={12} />
-            <span>{(interval.playlist || []).length} Tracks</span>
+            <GripVertical size={20} />
           </div>
 
-          <Button
-            variant="secondary"
-            size="xs"
-            onClick={onOpenPlaylist}
-            className="h-5 px-2 text-[9px]"
-          >
-            <Plus size={10} />
-            Add
-          </Button>
+          <div className="flex-1 p-3 sm:p-4 flex flex-col gap-2 relative">
+            {/* 3 Dot Menu - Absolute positioned top right */}
+            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowActions(!showActions)}
+                className="w-7 h-7 sm:w-8 sm:h-8 text-white/40 hover:text-white"
+              >
+                <MoreVertical size={16} />
+              </Button>
 
-          <div className="flex-1" />
+              <AnimatePresence>
+                {showActions && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-[60]"
+                      onClick={() => setShowActions(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9, x: 5 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, x: 5 }}
+                      className="fixed z-[70] glass border border-white/10 rounded-xl p-1 w-36 overflow-hidden"
+                      style={{
+                        right: '44px',
+                        top: '8px',
+                      }}
+                    >
+                      <button
+                        onClick={() => {
+                          onDuplicate();
+                          setShowActions(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left"
+                      >
+                        <Copy size={14} />
+                        Duplicate
+                      </button>
+                      <div className="h-px bg-white/5 mx-1" />
+                      <button
+                        onClick={() => {
+                          onDelete();
+                          setShowActions(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left"
+                      >
+                        <Trash2 size={14} />
+                        Remove
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
 
-          <Button
-            variant={interval.notes ? "accent" : "ghost"}
-            size="xs"
-            onClick={() => onOpenNotes(interval.id)}
-            title={interval.notes ? "View/Edit Notes" : "Add Notes"}
-            className="h-5 px-2 text-[9px]"
-          >
-            <FileText size={10} />
-            Notes
-          </Button>
-        </div>
+            {/* Main Row: Color | Title | Time */}
+            <div className="flex items-center gap-3 pr-10">
+              {/* Color Indicator & Picker */}
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setShowColorPicker(!showColorPicker)}
+                  className="w-1.5 h-8 sm:h-10 rounded-full shrink-0 shadow-lg transition-transform hover:scale-110 active:scale-95"
+                  style={{
+                    backgroundColor: interval.color,
+                    boxShadow: `0 0 15px ${interval.color}40`,
+                  }}
+                  title="Change Color"
+                />
+
+                <AnimatePresence>
+                  {showColorPicker && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-30"
+                        onClick={() => setShowColorPicker(false)}
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, x: -10 }}
+                          className="absolute left-full ml-3 -top-3 z-40 glass border border-white/10 rounded-xl p-2 grid grid-cols-5 gap-2 w-[160px]"
+                        >
+                        {COLORS.map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => {
+                              onUpdate({ color });
+                              setShowColorPicker(false);
+                            }}
+                            className={cn(
+                              "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
+                              interval.color === color
+                                ? "border-white"
+                                : "border-transparent",
+                            )}
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Title Input */}
+              <div className="flex-1 min-w-0">
+                <input
+                  value={interval.name}
+                  onChange={(e) => onUpdate({ name: e.target.value })}
+                  placeholder="Interval Title"
+                  className="bg-transparent border-none p-0 font-bold text-sm sm:text-base text-white/90 focus:ring-0 focus:outline-none w-full placeholder:text-white/10 truncate"
+                />
+              </div>
+
+              {/* Time Section */}
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <div className="flex items-center gap-0.5">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={mins === 0 ? "" : mins.toString()}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const val = Math.max(
+                        0,
+                        parseInt(e.target.value.replace(/\D/g, "")) || 0,
+                      );
+                      onUpdate({ duration: val * 60 + secs });
+                    }}
+                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-right text-xl sm:text-2xl font-mono font-black text-white tabular-nums selection:bg-accent/30"
+                  />
+                  <span className="text-[8px] sm:text-[9px] font-black text-white/50 uppercase tracking-wider">
+                    m
+                  </span>
+                </div>
+                <span className="text-lg sm:text-xl font-mono text-white/20">
+                  :
+                </span>
+                <div className="flex items-center gap-0.5">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={secs === 0 ? "" : secs.toString()}
+                    placeholder="0"
+                    onChange={(e) => {
+                      let val = parseInt(e.target.value.replace(/\D/g, "")) || 0;
+                      if (val > 59) val = 59;
+                      if (val < 0) val = 0;
+                      onUpdate({ duration: mins * 60 + val });
+                    }}
+                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-right text-xl sm:text-2xl font-mono font-black text-white tabular-nums selection:bg-accent/30"
+                  />
+                  <span className="text-[8px] sm:text-[9px] font-black text-white/50 uppercase tracking-wider">
+                    s
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Section: Track Count & Actions */}
+            <div className="flex items-center gap-3 pt-2 border-t border-white/5">
+              <div
+                className="flex items-center gap-2 text-[10px] font-mono"
+                style={{ color: (interval.playlist || []).length > 0 ? interval.color : 'rgba(255,255,255,0.4)' }}
+              >
+                <Music size={12} />
+                <span>{(interval.playlist || []).length} Tracks</span>
+              </div>
+
+              <Button
+                variant="secondary"
+                size="xs"
+                onClick={onOpenPlaylist}
+                className="h-5 px-2 text-[9px]"
+              >
+                <Plus size={10} />
+                Add
+              </Button>
+
+              <div className="flex-1" />
+
+              <Button
+                variant={interval.notes ? "accent" : "ghost"}
+                size="xs"
+                onClick={() => onOpenNotes(interval.id)}
+                title={interval.notes ? "View/Edit Notes" : "Add Notes"}
+                className="h-5 px-2 text-[9px]"
+              >
+                <FileText size={10} />
+                Notes
+              </Button>
+            </div>
+          </div>
+        </motion.div>
       </div>
     </Reorder.Item>
   );
@@ -627,6 +706,7 @@ export default function App() {
   const timerRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("tempotread_workouts");
@@ -969,6 +1049,16 @@ export default function App() {
     setIntervals([...intervals, newInterval]);
   };
 
+  const scrollTimeline = (direction: 'left' | 'right') => {
+    if (timelineRef.current) {
+      const scrollAmount = 200;
+      timelineRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const deleteInterval = (id: string) => {
     setIntervals(intervals.filter((i) => i.id !== id));
   };
@@ -1017,42 +1107,34 @@ export default function App() {
           {/* Left Column: Timeline */}
           <div
             className={cn(
-              "lg:col-span-7 space-y-3 sm:space-y-4",
+              "lg:col-span-7 space-y-3 sm:space-y-4 pb-20 lg:pb-0",
               state !== "idle" &&
                 "hidden lg:block opacity-20 pointer-events-none blur-[2px] transition-all duration-700",
             )}
           >
-            <div className="flex justify-between items-end px-1">
-              <h2 className="text-[10px] sm:text-sm font-bold uppercase tracking-[0.2em] text-white/40">
-                Workout Timeline
-              </h2>
-              <div className="text-right hidden sm:block">
-                <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">
-                  {state === "running" || state === "paused" || state === "countdown" ? "Remaining" : "Total Duration"}
-                </p>
-                <p className="text-xl font-mono text-white/80">
-                  {state === "running" || state === "paused" || state === "countdown"
-                    ? `${Math.floor((totalDuration - totalTimeElapsed) / 60)}:${((totalDuration - totalTimeElapsed) % 60).toString().padStart(2, "0")}`
-                    : `${Math.floor(totalDuration / 60)}:${(totalDuration % 60).toString().padStart(2, "0")}`}
-                </p>
-              </div>
-            </div>
-
-            {/* Workout Timeline Guide */}
-            <div className="mb-3">
-              <Reorder.Group
-                axis="x"
-                values={intervals}
-                onReorder={setIntervals}
-                className="flex justify-center gap-2 overflow-x-auto pb-2 custom-scrollbar"
-              >
-                {intervals.map((interval) => {
-                  const index = intervals.indexOf(interval);
-                  return (
+            {/* Workout Timeline Guide - Sticky with Navigation */}
+            <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur-sm py-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:bg-transparent lg:backdrop-blur-none lg:static">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => scrollTimeline('left')}
+                  className="w-7 h-7 rounded-full flex-shrink-0"
+                >
+                  <ChevronLeft size={16} />
+                </Button>
+                <Reorder.Group
+                  axis="x"
+                  values={intervals}
+                  onReorder={setIntervals}
+                  ref={timelineRef as any}
+                  className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar scroll-smooth flex-1"
+                >
+                  {intervals.map((interval) => (
                     <Reorder.Item
                       key={interval.id}
                       value={interval}
-                      className="flex flex-col items-center gap-1.5 cursor-pointer group flex-shrink-0"
+                      className="flex flex-col items-center gap-1.5 cursor-grab group flex-shrink-0"
                       onClick={() => {
                         const element = document.querySelector(`[data-interval-id="${interval.id}"]`);
                         element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1072,16 +1154,24 @@ export default function App() {
                         {interval.name}
                       </p>
                     </Reorder.Item>
-                  );
-                })}
-              </Reorder.Group>
+                  ))}
+                </Reorder.Group>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => scrollTimeline('right')}
+                  className="w-7 h-7 rounded-full flex-shrink-0"
+                >
+                  <ChevronRight size={16} />
+                </Button>
+              </div>
             </div>
 
             <Reorder.Group
               axis="y"
               values={intervals}
               onReorder={setIntervals}
-              className="space-y-2 overflow-y-auto max-h-[70vh] lg:max-h-[calc(100vh-240px)] pr-2 custom-scrollbar"
+              className="space-y-2 lg:overflow-y-auto lg:max-h-[calc(100vh-320px)] pr-2"
             >
               <AnimatePresence mode="popLayout">
                 {intervals.map((interval) => (
@@ -1099,21 +1189,21 @@ export default function App() {
                   />
                 ))}
               </AnimatePresence>
-
-              <Button
-                variant="secondary"
-                onClick={addInterval}
-                className="w-full py-3 border border-dashed border-white/10 rounded-xl flex items-center justify-center gap-2 group mt-2"
-              >
-                <Plus
-                  size={16}
-                  className="group-hover:scale-110 transition-transform text-white/40"
-                />
-                <span className="text-xs font-bold uppercase tracking-wider text-white/40 group-hover:text-white/80">
-                  Add Interval
-                </span>
-              </Button>
             </Reorder.Group>
+
+            <Button
+              variant="secondary"
+              onClick={addInterval}
+              className="w-full py-3 border border-dashed border-white/10 rounded-xl flex items-center justify-center gap-2 group mt-2"
+            >
+              <Plus
+                size={16}
+                className="group-hover:scale-110 transition-transform text-white/40"
+              />
+              <span className="text-xs font-bold uppercase tracking-wider text-white/40 group-hover:text-white/80">
+                Add Interval
+              </span>
+            </Button>
           </div>
 
           {/* Right Column: Active State / Controls */}
@@ -1123,7 +1213,7 @@ export default function App() {
                 variant="solid"
                 size="md"
                 onClick={startWorkout}
-                className="w-full rounded-2xl py-3 font-black text-base uppercase tracking-[0.2em]"
+                className="fixed bottom-4 left-4 right-4 lg:static lg:w-full rounded-2xl py-3 font-black text-base uppercase tracking-[0.2em] shadow-2xl z-30"
               >
                 <Play size={20} fill="currentColor" />
                 Let's go!
