@@ -36,7 +36,15 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup } from "./lib/utils";
+import {
+  cn,
+  Interval,
+  WorkoutState,
+  COLORS,
+  buildColorGroups,
+  getGroupForInterval,
+  ColorGroup,
+} from "./lib/utils";
 import { audioEngine } from "./lib/audio";
 
 // --- Components ---
@@ -77,8 +85,7 @@ const Button = ({
     ghost: "text-white/40 hover:text-white/80 hover:bg-white/5",
     accent:
       "bg-accent/10 text-accent hover:bg-accent/20 border border-accent/20",
-    solid:
-      "bg-accent text-bg hover:bg-accent/90 border-none",
+    solid: "bg-accent text-bg hover:bg-accent/90 border-none",
     white: "bg-white text-bg hover:bg-white/90 border-none",
     danger:
       "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20",
@@ -149,7 +156,10 @@ const IntervalCard = ({
     if (x.get() < -10) {
       const handleClickOutside = (e: MouseEvent | TouchEvent) => {
         if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
-          controls.start({ x: snapClosedX, transition: { type: "spring", stiffness: 500, damping: 30 } });
+          controls.start({
+            x: snapClosedX,
+            transition: { type: "spring", stiffness: 500, damping: 30 },
+          });
         }
       };
       document.addEventListener("mousedown", handleClickOutside);
@@ -162,16 +172,25 @@ const IntervalCard = ({
   }, [x.get(), controls]);
 
   // Handle drag end - snap to open or closed
-  const handleDragEnd = (_: unknown, info: { offset: { x: number }; velocity: { x: number } }) => {
+  const handleDragEnd = (
+    _: unknown,
+    info: { offset: { x: number }; velocity: { x: number } },
+  ) => {
     const currentX = x.get();
     const velocity = info.velocity.x;
 
     // If dragged past threshold or with high velocity to the left, snap open
     if (currentX < swipeThreshold || (velocity < -500 && currentX < -20)) {
-      controls.start({ x: snapOpenX, transition: { type: "spring", stiffness: 500, damping: 30 } });
+      controls.start({
+        x: snapOpenX,
+        transition: { type: "spring", stiffness: 500, damping: 30 },
+      });
     } else {
       // Snap closed
-      controls.start({ x: snapClosedX, transition: { type: "spring", stiffness: 500, damping: 30 } });
+      controls.start({
+        x: snapClosedX,
+        transition: { type: "spring", stiffness: 500, damping: 30 },
+      });
     }
   };
 
@@ -194,7 +213,10 @@ const IntervalCard = ({
           <button
             onClick={() => {
               onDuplicate();
-              controls.start({ x: snapClosedX, transition: { type: "spring", stiffness: 500, damping: 30 } });
+              controls.start({
+                x: snapClosedX,
+                transition: { type: "spring", stiffness: 500, damping: 30 },
+              });
             }}
             className="w-[55px] bg-white/10 hover:bg-white/20 flex flex-col items-center justify-center gap-1 transition-colors border-l border-white/5 pointer-events-auto"
             aria-label="Duplicate interval"
@@ -204,7 +226,10 @@ const IntervalCard = ({
           <button
             onClick={() => {
               onDelete();
-              controls.start({ x: snapClosedX, transition: { type: "spring", stiffness: 500, damping: 30 } });
+              controls.start({
+                x: snapClosedX,
+                transition: { type: "spring", stiffness: 500, damping: 30 },
+              });
             }}
             className="w-[55px] bg-red-500/20 hover:bg-red-500/30 flex flex-col items-center justify-center gap-1 transition-colors border-l border-white/5 pointer-events-auto"
             aria-label="Remove interval"
@@ -256,8 +281,8 @@ const IntervalCard = ({
                       exit={{ opacity: 0, scale: 0.9, x: 5 }}
                       className="fixed z-[70] glass border border-white/10 rounded-xl p-1 w-36 overflow-hidden"
                       style={{
-                        right: '44px',
-                        top: '8px',
+                        right: "44px",
+                        top: "8px",
                       }}
                     >
                       <button
@@ -312,8 +337,8 @@ const IntervalCard = ({
                         initial={{ opacity: 0, scale: 0.9, x: -10 }}
                         animate={{ opacity: 1, scale: 1, x: 0 }}
                         exit={{ opacity: 0, scale: 0.9, x: -10 }}
-                          className="absolute left-full ml-3 -top-3 z-40 glass border border-white/10 rounded-xl p-2 grid grid-cols-5 gap-2 w-[160px]"
-                        >
+                        className="absolute left-full ml-3 -top-3 z-40 glass border border-white/10 rounded-xl p-2 grid grid-cols-5 gap-2 w-[160px]"
+                      >
                         {COLORS.map((color) => (
                           <button
                             key={color}
@@ -379,7 +404,8 @@ const IntervalCard = ({
                     value={secs === 0 ? "" : secs.toString()}
                     placeholder="0"
                     onChange={(e) => {
-                      let val = parseInt(e.target.value.replace(/\D/g, "")) || 0;
+                      let val =
+                        parseInt(e.target.value.replace(/\D/g, "")) || 0;
                       if (val > 59) val = 59;
                       if (val < 0) val = 0;
                       onUpdate({ duration: mins * 60 + val });
@@ -397,7 +423,12 @@ const IntervalCard = ({
             <div className="flex items-center gap-3 pt-2 border-t border-white/5">
               <div
                 className="flex items-center gap-2 text-[10px] font-mono"
-                style={{ color: (interval.playlist || []).length > 0 ? interval.color : 'rgba(255,255,255,0.4)' }}
+                style={{
+                  color:
+                    (interval.playlist || []).length > 0
+                      ? interval.color
+                      : "rgba(255,255,255,0.4)",
+                }}
               >
                 <Music size={12} />
                 <span>{(interval.playlist || []).length} Tracks</span>
@@ -571,7 +602,11 @@ const PlaylistDrawer = ({
                   <>
                     <motion.div
                       animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
                       className="w-4 h-4 border-2 border-bg/30 border-t-bg rounded-full"
                     />
                     Uploading...
@@ -599,10 +634,7 @@ const PlaylistDrawer = ({
                 </p>
               ) : (
                 audioLibrary.map((audio) => (
-                  <div
-                    key={audio.id}
-                    className="flex items-center gap-1"
-                  >
+                  <div key={audio.id} className="flex items-center gap-1">
                     {/* Main clickable area - adds to playlist */}
                     <button
                       onClick={() =>
@@ -610,7 +642,9 @@ const PlaylistDrawer = ({
                           playlist: [
                             ...(interval.playlist || []),
                             {
-                              instanceId: Math.random().toString(36).substr(2, 9),
+                              instanceId: Math.random()
+                                .toString(36)
+                                .substr(2, 9),
                               audioId: audio.id,
                             },
                           ],
@@ -695,7 +729,9 @@ export default function App() {
 
   // Alarm settings state
   const [alarmVolume, setAlarmVolume] = useState(0.5);
-  const [alarmPreset, setAlarmPreset] = useState<"digital" | "chime" | "bell" | "buzzer" | "custom">("digital");
+  const [alarmPreset, setAlarmPreset] = useState<
+    "digital" | "chime" | "bell" | "buzzer" | "custom"
+  >("digital");
   const [customAlarmName, setCustomAlarmName] = useState("");
   const [halfwaySoundEnabled, setHalfwaySoundEnabled] = useState(false);
   const alarmFileInputRef = useRef<HTMLInputElement>(null);
@@ -719,7 +755,9 @@ export default function App() {
     }
 
     // Load alarm settings
-    const savedAlarmSettings = localStorage.getItem("tempotread_alarm_settings");
+    const savedAlarmSettings = localStorage.getItem(
+      "tempotread_alarm_settings",
+    );
     if (savedAlarmSettings) {
       try {
         const settings = JSON.parse(savedAlarmSettings);
@@ -839,7 +877,10 @@ export default function App() {
       const prev = intervals[prevIndex];
       const prevGroup = getGroupForInterval(colorGroups, prevIndex);
       const currentGroup = getGroupForInterval(colorGroups, currentIndex);
-      const isSameGroup = prevGroup && currentGroup && prevGroup.startIndex === currentGroup.startIndex;
+      const isSameGroup =
+        prevGroup &&
+        currentGroup &&
+        prevGroup.startIndex === currentGroup.startIndex;
 
       setCurrentIndex(prevIndex);
       setTimeLeft(prev.duration);
@@ -847,7 +888,10 @@ export default function App() {
       audioEngine.playStart();
       // Restart audio for the previous interval's group
       if (prevGroup && prevGroup.mergedPlaylist.length > 0) {
-        audioEngine.playPlaylist(prevGroup.mergedPlaylist, prevGroup.totalDuration);
+        audioEngine.playPlaylist(
+          prevGroup.mergedPlaylist,
+          prevGroup.totalDuration,
+        );
       }
     }
   };
@@ -858,7 +902,10 @@ export default function App() {
       const next = intervals[nextIndex];
       const nextGroup = getGroupForInterval(colorGroups, nextIndex);
       const currentGroup = getGroupForInterval(colorGroups, currentIndex);
-      const isSameGroup = nextGroup && currentGroup && nextGroup.startIndex === currentGroup.startIndex;
+      const isSameGroup =
+        nextGroup &&
+        currentGroup &&
+        nextGroup.startIndex === currentGroup.startIndex;
 
       setCurrentIndex(nextIndex);
       setTimeLeft(next.duration);
@@ -866,7 +913,10 @@ export default function App() {
       audioEngine.playStart();
       // Restart audio for the next interval's group
       if (nextGroup && nextGroup.mergedPlaylist.length > 0) {
-        audioEngine.playPlaylist(nextGroup.mergedPlaylist, nextGroup.totalDuration);
+        audioEngine.playPlaylist(
+          nextGroup.mergedPlaylist,
+          nextGroup.totalDuration,
+        );
       }
     } else {
       audioEngine.playWorkoutComplete();
@@ -879,13 +929,15 @@ export default function App() {
     const files = e.target.files;
     if (files && files.length > 0) {
       setIsUploading(true);
-      const supportedExtensions = ['.mp3', '.wav', '.ogg', '.oga', '.ogv'];
+      const supportedExtensions = [".mp3", ".wav", ".ogg", ".oga", ".ogv"];
       const unsupportedFiles: string[] = [];
       const supportedFiles: File[] = [];
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+        const ext = file.name
+          .toLowerCase()
+          .substring(file.name.lastIndexOf("."));
         if (supportedExtensions.includes(ext)) {
           supportedFiles.push(file);
         } else {
@@ -894,7 +946,9 @@ export default function App() {
       }
 
       if (unsupportedFiles.length > 0) {
-        alert(`The following file types are not supported:\n${unsupportedFiles.join('\n')}\n\nPlease use MP3, WAV, or OGG files only.`);
+        alert(
+          `The following file types are not supported:\n${unsupportedFiles.join("\n")}\n\nPlease use MP3, WAV, or OGG files only.`,
+        );
       }
 
       try {
@@ -904,7 +958,9 @@ export default function App() {
         setAudioLibrary(audioEngine.getAudioLibrary());
       } catch (err) {
         console.error("Failed to load audio:", err);
-        alert("Failed to load audio file(s). Please ensure they are valid MP3, WAV, or OGG files.");
+        alert(
+          "Failed to load audio file(s). Please ensure they are valid MP3, WAV, or OGG files.",
+        );
       } finally {
         setIsUploading(false);
       }
@@ -976,7 +1032,10 @@ export default function App() {
             const next = prev - 1;
 
             // Audio Cues
-            if (halfwaySoundEnabled && next === Math.floor(currentInterval.duration / 2)) {
+            if (
+              halfwaySoundEnabled &&
+              next === Math.floor(currentInterval.duration / 2)
+            ) {
               audioEngine.playMiddle();
             }
             if (next <= 5 && next > 0) {
@@ -989,9 +1048,15 @@ export default function App() {
 
                 const nextIndex = currentIndex + 1;
                 const nextInterval = intervals[nextIndex];
-                const currentGroup = getGroupForInterval(colorGroups, currentIndex);
+                const currentGroup = getGroupForInterval(
+                  colorGroups,
+                  currentIndex,
+                );
                 const nextGroup = getGroupForInterval(colorGroups, nextIndex);
-                const isSameGroup = currentGroup && nextGroup && currentGroup.startIndex === nextGroup.startIndex;
+                const isSameGroup =
+                  currentGroup &&
+                  nextGroup &&
+                  currentGroup.startIndex === nextGroup.startIndex;
 
                 setCurrentIndex(nextIndex);
 
@@ -1036,7 +1101,14 @@ export default function App() {
     return () => {
       if (timerRef.current) cancelAnimationFrame(timerRef.current);
     };
-  }, [state, currentIndex, currentInterval, intervals, colorGroups, halfwaySoundEnabled]);
+  }, [
+    state,
+    currentIndex,
+    currentInterval,
+    intervals,
+    colorGroups,
+    halfwaySoundEnabled,
+  ]);
 
   const addInterval = () => {
     const newInterval: Interval = {
@@ -1049,12 +1121,12 @@ export default function App() {
     setIntervals([...intervals, newInterval]);
   };
 
-  const scrollTimeline = (direction: 'left' | 'right') => {
+  const scrollTimeline = (direction: "left" | "right") => {
     if (timelineRef.current) {
       const scrollAmount = 200;
       timelineRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
       });
     }
   };
@@ -1085,10 +1157,16 @@ export default function App() {
           <div className="flex items-center justify-between w-full sm:w-auto gap-6">
             <div className="sm:hidden text-left">
               <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">
-                {state === "running" || state === "paused" || state === "countdown" ? "Remaining" : "Total Duration"}
+                {state === "running" ||
+                state === "paused" ||
+                state === "countdown"
+                  ? "Remaining"
+                  : "Total Duration"}
               </p>
               <p className="text-lg font-mono text-white/80">
-                {state === "running" || state === "paused" || state === "countdown"
+                {state === "running" ||
+                state === "paused" ||
+                state === "countdown"
                   ? `${Math.floor((totalDuration - totalTimeElapsed) / 60)}:${((totalDuration - totalTimeElapsed) % 60).toString().padStart(2, "0")}`
                   : `${Math.floor(totalDuration / 60)}:${(totalDuration % 60).toString().padStart(2, "0")}`}
               </p>
@@ -1118,7 +1196,7 @@ export default function App() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => scrollTimeline('left')}
+                  onClick={() => scrollTimeline("left")}
                   className="w-7 h-7 rounded-full flex-shrink-0"
                 >
                   <ChevronLeft size={16} />
@@ -1136,8 +1214,13 @@ export default function App() {
                       value={interval}
                       className="flex flex-col items-center gap-1.5 cursor-grab group flex-shrink-0"
                       onClick={() => {
-                        const element = document.querySelector(`[data-interval-id="${interval.id}"]`);
-                        element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        const element = document.querySelector(
+                          `[data-interval-id="${interval.id}"]`,
+                        );
+                        element?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
                       }}
                     >
                       <div
@@ -1159,7 +1242,7 @@ export default function App() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => scrollTimeline('right')}
+                  onClick={() => scrollTimeline("right")}
                   className="w-7 h-7 rounded-full flex-shrink-0"
                 >
                   <ChevronRight size={16} />
@@ -1281,7 +1364,9 @@ export default function App() {
                     className="text-3xl sm:text-4xl md:text-5xl font-black text-center mb-1"
                     style={{ color: themeColor }}
                   >
-                    {state === "finished" ? "Workout Complete" : currentInterval.name}
+                    {state === "finished"
+                      ? "Workout Complete"
+                      : currentInterval.name}
                   </h1>
                   {currentIndex < intervals.length - 1 &&
                     state !== "finished" && (
@@ -1331,12 +1416,12 @@ export default function App() {
                     />
                   </svg>
 
-                  <div className="flex flex-col items-center z-10">
-                    <p className="text-6xl sm:text-7xl md:text-8xl font-mono font-black tabular-nums text-white">
+                  <div className="flex flex-col items-center z-10 px-2">
+                    <p className="text-5xl sm:text-6xl md:text-7xl font-mono font-black tabular-nums text-white leading-none">
                       {Math.floor(timeLeft / 60)}:
                       {(timeLeft % 60).toString().padStart(2, "0")}
                     </p>
-                    <p className="text-[10px] font-mono text-white/40 uppercase tracking-[0.2em] mt-2">
+                    <p className="text-[9px] font-mono text-white/40 uppercase tracking-[0.2em] mt-1.5">
                       LEFT
                     </p>
                   </div>
@@ -1607,8 +1692,12 @@ export default function App() {
                       {/* Volume Slider */}
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
-                          <label className="text-sm text-white/70">Alarm Volume</label>
-                          <span className="text-sm font-mono text-white/50">{Math.round(alarmVolume * 100)}%</span>
+                          <label className="text-sm text-white/70">
+                            Alarm Volume
+                          </label>
+                          <span className="text-sm font-mono text-white/50">
+                            {Math.round(alarmVolume * 100)}%
+                          </span>
                         </div>
                         <input
                           type="range"
@@ -1616,34 +1705,66 @@ export default function App() {
                           max="1"
                           step="0.01"
                           value={alarmVolume}
-                          onChange={(e) => setAlarmVolume(parseFloat(e.target.value))}
+                          onChange={(e) =>
+                            setAlarmVolume(parseFloat(e.target.value))
+                          }
                           className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-accent hover:bg-white/20 transition-colors"
                         />
                       </div>
 
                       {/* Preset Selector */}
                       <div className="space-y-3">
-                        <label className="text-sm text-white/70">Alarm Sound</label>
+                        <label className="text-sm text-white/70">
+                          Alarm Sound
+                        </label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {[
-                            { value: "digital", label: "Digital", desc: "Classic beep" },
-                            { value: "chime", label: "Chime", desc: "Soft bell" },
-                            { value: "bell", label: "Bell", desc: "Ringing tone" },
-                            { value: "buzzer", label: "Buzzer", desc: "Alert buzz" },
-                            { value: "custom", label: "Custom", desc: customAlarmName || "Upload file" },
+                            {
+                              value: "digital",
+                              label: "Digital",
+                              desc: "Classic beep",
+                            },
+                            {
+                              value: "chime",
+                              label: "Chime",
+                              desc: "Soft bell",
+                            },
+                            {
+                              value: "bell",
+                              label: "Bell",
+                              desc: "Ringing tone",
+                            },
+                            {
+                              value: "buzzer",
+                              label: "Buzzer",
+                              desc: "Alert buzz",
+                            },
+                            {
+                              value: "custom",
+                              label: "Custom",
+                              desc: customAlarmName || "Upload file",
+                            },
                           ].map((preset) => (
                             <button
                               key={preset.value}
-                              onClick={() => setAlarmPreset(preset.value as typeof alarmPreset)}
+                              onClick={() =>
+                                setAlarmPreset(
+                                  preset.value as typeof alarmPreset,
+                                )
+                              }
                               className={cn(
                                 "p-3 rounded-xl border text-left transition-all",
                                 alarmPreset === preset.value
                                   ? "border-accent bg-accent/10"
-                                  : "border-white/10 bg-white/5 hover:border-white/20"
+                                  : "border-white/10 bg-white/5 hover:border-white/20",
                               )}
                             >
-                              <div className="text-xs font-bold text-white/90">{preset.label}</div>
-                              <div className="text-[10px] text-white/40 truncate">{preset.desc}</div>
+                              <div className="text-xs font-bold text-white/90">
+                                {preset.label}
+                              </div>
+                              <div className="text-[10px] text-white/40 truncate">
+                                {preset.desc}
+                              </div>
                             </button>
                           ))}
                         </div>
@@ -1662,7 +1783,10 @@ export default function App() {
                                   await audioEngine.setCustomAlarmFile(file);
                                   setCustomAlarmName(file.name);
                                 } catch (err) {
-                                  console.error("Failed to load custom alarm:", err);
+                                  console.error(
+                                    "Failed to load custom alarm:",
+                                    err,
+                                  );
                                 }
                               }
                             }}
@@ -1674,11 +1798,15 @@ export default function App() {
                             className="w-full py-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-colors"
                           >
                             <Upload size={16} />
-                            {customAlarmName ? "Change Custom Sound" : "Upload Custom Sound"}
+                            {customAlarmName
+                              ? "Change Custom Sound"
+                              : "Upload Custom Sound"}
                           </button>
                           {customAlarmName && (
                             <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                              <span className="text-xs text-white/70 truncate">{customAlarmName}</span>
+                              <span className="text-xs text-white/70 truncate">
+                                {customAlarmName}
+                              </span>
                               <button
                                 onClick={() => {
                                   audioEngine.clearCustomAlarm();
@@ -1706,20 +1834,28 @@ export default function App() {
                       {/* Halfway Sound Toggle */}
                       <div className="flex items-center justify-between py-3 border-t border-white/10">
                         <div>
-                          <label className="text-sm text-white/70">Halfway Alert</label>
-                          <p className="text-[10px] text-white/40">Sound when interval reaches 50%</p>
+                          <label className="text-sm text-white/70">
+                            Halfway Alert
+                          </label>
+                          <p className="text-[10px] text-white/40">
+                            Sound when interval reaches 50%
+                          </p>
                         </div>
                         <button
-                          onClick={() => setHalfwaySoundEnabled(!halfwaySoundEnabled)}
+                          onClick={() =>
+                            setHalfwaySoundEnabled(!halfwaySoundEnabled)
+                          }
                           className={cn(
                             "w-11 h-6 rounded-full transition-colors relative flex items-center",
-                            halfwaySoundEnabled ? "bg-accent" : "bg-white/20"
+                            halfwaySoundEnabled ? "bg-accent" : "bg-white/20",
                           )}
                         >
                           <span
                             className={cn(
                               "w-4 h-4 rounded-full bg-white transition-transform",
-                              halfwaySoundEnabled ? "translate-x-6" : "translate-x-1"
+                              halfwaySoundEnabled
+                                ? "translate-x-6"
+                                : "translate-x-1",
                             )}
                           />
                         </button>
