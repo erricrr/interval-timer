@@ -1254,7 +1254,7 @@ export default function App() {
               axis="y"
               values={intervals}
               onReorder={setIntervals}
-              className="space-y-2 lg:overflow-y-auto lg:max-h-[calc(100vh-320px)] pr-2"
+              className="space-y-2 lg:overflow-y-auto lg:max-h-[calc(100vh-320px)] pr-2 pb-5"
             >
               <AnimatePresence mode="popLayout">
                 {intervals.map((interval) => (
@@ -1274,10 +1274,9 @@ export default function App() {
               </AnimatePresence>
             </Reorder.Group>
 
-            <Button
-              variant="secondary"
+            <button
               onClick={addInterval}
-              className="w-full py-3 border border-dashed border-white/10 rounded-xl flex items-center justify-center gap-2 group mt-2"
+              className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 py-3 px-6 border border-dashed border-white/10 rounded-full flex items-center justify-center gap-2 group glass hover:bg-white/10 transition-all shadow-xl lg:static lg:bottom-auto lg:left-auto lg:translate-x-0 lg:w-full lg:py-3 lg:rounded-xl lg:mt-2 lg:shadow-none"
             >
               <Plus
                 size={16}
@@ -1286,7 +1285,7 @@ export default function App() {
               <span className="text-xs font-bold uppercase tracking-wider text-white/40 group-hover:text-white/80">
                 Add Interval
               </span>
-            </Button>
+            </button>
           </div>
 
           {/* Right Column: Active State / Controls */}
