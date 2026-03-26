@@ -188,15 +188,15 @@ const IntervalCard = ({
       )}
       data-interval-id={interval.id}
     >
-      <div ref={cardRef} className="relative flex flex-row">
+      <div ref={cardRef} className="relative flex flex-row w-full">
         {/* Background Action Buttons - revealed on swipe */}
-        <div className="absolute inset-0 flex justify-end items-stretch">
+        <div className="absolute right-0 top-0 bottom-0 w-[110px] flex items-stretch pointer-events-none z-0">
           <button
             onClick={() => {
               onDuplicate();
               controls.start({ x: snapClosedX, transition: { type: "spring", stiffness: 500, damping: 30 } });
             }}
-            className="w-[50px] sm:w-[60px] bg-white/10 hover:bg-white/20 flex flex-col items-center justify-center gap-1 transition-colors border-l border-white/5"
+            className="w-[55px] bg-white/10 hover:bg-white/20 flex flex-col items-center justify-center gap-1 transition-colors border-l border-white/5 pointer-events-auto"
             aria-label="Duplicate interval"
           >
             <Copy size={20} className="text-white/70" />
@@ -206,7 +206,7 @@ const IntervalCard = ({
               onDelete();
               controls.start({ x: snapClosedX, transition: { type: "spring", stiffness: 500, damping: 30 } });
             }}
-            className="w-[50px] sm:w-[60px] bg-red-500/20 hover:bg-red-500/30 flex flex-col items-center justify-center gap-1 transition-colors border-l border-white/5"
+            className="w-[55px] bg-red-500/20 hover:bg-red-500/30 flex flex-col items-center justify-center gap-1 transition-colors border-l border-white/5 pointer-events-auto"
             aria-label="Remove interval"
           >
             <Trash2 size={20} className="text-red-400" />
@@ -216,8 +216,8 @@ const IntervalCard = ({
         {/* Swipeable Card Content */}
         <motion.div
           drag="x"
-          dragConstraints={{ left: -100, right: 0 }}
-          dragElastic={{ left: 0.1, right: 0 }}
+          dragConstraints={{ left: -110, right: 0 }}
+          dragElastic={0}
           onDragEnd={handleDragEnd}
           animate={controls}
           style={{ x }}
