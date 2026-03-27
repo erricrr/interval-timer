@@ -17,6 +17,7 @@ export interface Interval {
   notes?: string;
   color: string;
   playlist?: PlaylistTrack[];
+  halfwayAlert?: boolean;
 }
 
 export type WorkoutState = 'idle' | 'countdown' | 'running' | 'paused' | 'finished';

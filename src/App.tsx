@@ -35,6 +35,7 @@ import {
   Volume2,
   ChevronLeft,
   ChevronRight,
+  Bell,
 } from "lucide-react";
 import {
   cn,
@@ -126,6 +127,7 @@ interface IntervalCardProps {
   onOpenPlaylist: () => void;
   onOpenNotes: (id: string) => void;
   audioLibrary: { id: string; name: string }[];
+  globalHalfwayAlert: boolean;
 }
 
 const IntervalCard = ({
@@ -136,6 +138,7 @@ const IntervalCard = ({
   onOpenPlaylist,
   onOpenNotes,
   audioLibrary,
+  globalHalfwayAlert,
 }: IntervalCardProps) => {
   const dragControls = useDragControls();
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -372,6 +375,55 @@ const IntervalCard = ({
                   placeholder="Interval Title"
                   className="bg-transparent border-none p-0 font-bold text-sm sm:text-base text-white/90 focus:ring-0 focus:outline-none w-full placeholder:text-white/10 truncate"
                 />
+              </div>
+
+              {/* Halfway Alert Toggle */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Bell size={12} className="text-white/40" aria-hidden="true" />
+                <label
+                  htmlFor={`halfway-alert-${interval.id}`}
+                  className="text-[10px] font-medium text-white/50 uppercase cursor-pointer"
+                >
+                  50%
+                </label>
+                <button
+                  id={`halfway-alert-${interval.id}`}
+                  role="switch"
+                  aria-checked={interval.halfwayAlert ?? globalHalfwayAlert}
+                  onClick={() =>
+                    onUpdate({
+                      halfwayAlert: !(
+                        interval.halfwayAlert ?? globalHalfwayAlert
+                      ),
+                    })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onUpdate({
+                        halfwayAlert: !(
+                          interval.halfwayAlert ?? globalHalfwayAlert
+                        ),
+                      });
+                    }
+                  }}
+                  className={cn(
+                    "w-9 h-5 rounded-full transition-colors relative flex items-center shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+                    (interval.halfwayAlert ?? globalHalfwayAlert)
+                      ? "bg-accent"
+                      : "bg-white/20",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "w-3 h-3 rounded-full bg-white transition-transform",
+                      (interval.halfwayAlert ?? globalHalfwayAlert)
+                        ? "translate-x-5"
+                        : "translate-x-1",
+                    )}
+                    aria-hidden="true"
+                  />
+                </button>
               </div>
 
               {/* Time Section */}
@@ -1036,8 +1088,10 @@ export default function App() {
             const next = prev - 1;
 
             // Audio Cues
+            const shouldPlayHalfway =
+              currentInterval.halfwayAlert ?? halfwaySoundEnabled;
             if (
-              halfwaySoundEnabled &&
+              shouldPlayHalfway &&
               next === Math.floor(currentInterval.duration / 2)
             ) {
               audioEngine.playMiddle();
@@ -1121,6 +1175,7 @@ export default function App() {
       duration: 60,
       notes: "",
       color: COLORS[intervals.length % COLORS.length],
+      halfwayAlert: undefined, // Will inherit from global default
     };
     setIntervals([...intervals, newInterval]);
   };
@@ -1150,17 +1205,22 @@ export default function App() {
   return (
     <div className="min-h-screen bg-bg text-white font-sans antialiased selection:bg-accent/30 overflow-x-hidden">
       <div className="max-w-7xl mx-auto flex flex-col p-4 md:p-8 lg:p-12 min-h-screen">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 lg:mb-8">
-          <div className="flex-1 w-full max-w-md lg:max-w-4xl">
+        <header className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 lg:mb-8">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="absolute top-0 right-0 p-3 sm:p-4 glass rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all hover:scale-110 active:scale-95"
+            title="Settings & Library"
+          >
+            <Settings size={20} className="sm:w-6 sm:h-6" />
+          </button>
+          <div className="flex-1 w-full max-w-md lg:max-w-4xl pr-14">
             <input
               value={workoutTitle}
               onChange={(e) => setWorkoutTitle(e.target.value)}
               className="text-xl md:text-3xl lg:text-5xl font-black tracking-tighter text-accent bg-transparent border-none p-0 focus:ring-0 w-full uppercase truncate"
               aria-label="Workout title"
             />
-          </div>
-          <div className="flex items-center justify-between w-full sm:w-auto gap-6">
-            <div className="sm:hidden text-left">
+            <div className="text-left mt-1">
               <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">
                 {state === "running" ||
                 state === "paused" ||
@@ -1176,13 +1236,6 @@ export default function App() {
                   : `${Math.floor(totalDuration / 60)}:${(totalDuration % 60).toString().padStart(2, "0")}`}
               </p>
             </div>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="p-3 sm:p-4 glass rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all hover:scale-110 active:scale-95"
-              title="Settings & Library"
-            >
-              <Settings size={20} className="sm:w-6 sm:h-6" />
-            </button>
           </div>
         </header>
 
@@ -1276,6 +1329,7 @@ export default function App() {
                     onOpenPlaylist={() => setEditingIntervalId(interval.id)}
                     onOpenNotes={(id) => setViewingNotesId(id)}
                     audioLibrary={audioLibrary}
+                    globalHalfwayAlert={halfwaySoundEnabled}
                   />
                 ))}
               </AnimatePresence>
@@ -1856,7 +1910,11 @@ export default function App() {
                             "w-11 h-6 rounded-full transition-colors relative flex items-center",
                             halfwaySoundEnabled ? "bg-accent" : "bg-white/20",
                           )}
-                          aria-label={halfwaySoundEnabled ? "Disable halfway alert" : "Enable halfway alert"}
+                          aria-label={
+                            halfwaySoundEnabled
+                              ? "Disable halfway alert"
+                              : "Enable halfway alert"
+                          }
                           aria-pressed={halfwaySoundEnabled}
                         >
                           <span
