@@ -66,6 +66,7 @@ const CloseButton = ({ onClose }: { onClose: () => void }) => (
   <button
     onClick={onClose}
     className="p-3 glass rounded-full text-white/60 hover:text-white transition-colors"
+    aria-label="Close"
   >
     <X size={24} />
   </button>
@@ -264,6 +265,7 @@ const IntervalCard = ({
                 size="icon"
                 onClick={() => setShowActions(!showActions)}
                 className="w-7 h-7 sm:w-8 sm:h-8 text-white/40 hover:text-white"
+                aria-label="More actions"
               >
                 <MoreVertical size={16} />
               </Button>
@@ -353,6 +355,7 @@ const IntervalCard = ({
                                 : "border-transparent",
                             )}
                             style={{ backgroundColor: color }}
+                            aria-label={`Select color ${color}`}
                           />
                         ))}
                       </motion.div>
@@ -575,6 +578,7 @@ const PlaylistDrawer = ({
                           onUpdate({ playlist: nextPlaylist });
                         }}
                         className="p-1.5 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                        aria-label="Remove track"
                       >
                         <X size={14} />
                       </button>
@@ -1152,6 +1156,7 @@ export default function App() {
               value={workoutTitle}
               onChange={(e) => setWorkoutTitle(e.target.value)}
               className="text-xl md:text-3xl lg:text-5xl font-black tracking-tighter text-accent bg-transparent border-none p-0 focus:ring-0 w-full uppercase truncate"
+              aria-label="Workout title"
             />
           </div>
           <div className="flex items-center justify-between w-full sm:w-auto gap-6">
@@ -1198,6 +1203,7 @@ export default function App() {
                   size="icon"
                   onClick={() => scrollTimeline("left")}
                   className="w-7 h-7 rounded-full flex-shrink-0"
+                  aria-label="Scroll timeline left"
                 >
                   <ChevronLeft size={16} />
                 </Button>
@@ -1244,6 +1250,7 @@ export default function App() {
                   size="icon"
                   onClick={() => scrollTimeline("right")}
                   className="w-7 h-7 rounded-full flex-shrink-0"
+                  aria-label="Scroll timeline right"
                 >
                   <ChevronRight size={16} />
                 </Button>
@@ -1813,6 +1820,7 @@ export default function App() {
                                   setAlarmPreset("digital");
                                 }}
                                 className="text-white/30 hover:text-red-400 transition-colors"
+                                aria-label="Clear custom alarm"
                               >
                                 <MinusCircle size={16} />
                               </button>
@@ -1848,6 +1856,8 @@ export default function App() {
                             "w-11 h-6 rounded-full transition-colors relative flex items-center",
                             halfwaySoundEnabled ? "bg-accent" : "bg-white/20",
                           )}
+                          aria-label={halfwaySoundEnabled ? "Disable halfway alert" : "Enable halfway alert"}
+                          aria-pressed={halfwaySoundEnabled}
                         >
                           <span
                             className={cn(
@@ -1946,6 +1956,7 @@ export default function App() {
                     <button
                       onClick={() => setViewingNotesId(null)}
                       className="text-white/30 hover:text-white"
+                      aria-label="Close notes"
                     >
                       <X size={16} />
                     </button>
