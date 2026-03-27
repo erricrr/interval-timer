@@ -373,7 +373,7 @@ const IntervalCard = ({
                   value={interval.name}
                   onChange={(e) => onUpdate({ name: e.target.value })}
                   placeholder="Interval Title"
-                  className="bg-transparent border-none p-0 font-bold text-sm sm:text-base text-white/90 focus:ring-0 focus:outline-none w-full placeholder:text-white/10 truncate"
+                  className="bg-transparent border-none p-0 font-bold text-sm sm:text-base text-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full placeholder:text-white/10 truncate"
                 />
               </div>
 
@@ -442,7 +442,7 @@ const IntervalCard = ({
                       );
                       onUpdate({ duration: val * 60 + secs });
                     }}
-                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-right text-xl sm:text-2xl font-mono font-black text-white tabular-nums selection:bg-accent/30"
+                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-xl sm:text-2xl font-mono font-black text-white tabular-nums selection:bg-accent/30"
                   />
                   <span className="text-[8px] sm:text-[9px] font-black text-white/50 uppercase tracking-wider">
                     m
@@ -465,7 +465,7 @@ const IntervalCard = ({
                       if (val < 0) val = 0;
                       onUpdate({ duration: mins * 60 + val });
                     }}
-                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-right text-xl sm:text-2xl font-mono font-black text-white tabular-nums selection:bg-accent/30"
+                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-xl sm:text-2xl font-mono font-black text-white tabular-nums selection:bg-accent/30"
                   />
                   <span className="text-[8px] sm:text-[9px] font-black text-white/50 uppercase tracking-wider">
                     s
@@ -1205,19 +1205,43 @@ export default function App() {
   return (
     <div className="min-h-screen bg-bg text-white font-sans antialiased selection:bg-accent/30 overflow-x-hidden">
       <div className="max-w-7xl mx-auto flex flex-col p-4 md:p-8 lg:p-12 min-h-screen">
-        <header className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 lg:mb-8">
-          <button
-            onClick={() => setShowSettings(true)}
-            className="absolute top-0 right-0 p-3 sm:p-4 glass rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all hover:scale-110 active:scale-95"
-            title="Settings & Library"
-          >
-            <Settings size={20} className="sm:w-6 sm:h-6" />
-          </button>
-          <div className="flex-1 w-full max-w-md lg:max-w-4xl pr-14">
+        <header className="flex flex-col gap-4 mb-4 lg:mb-8">
+          {/* Top Row: App Title + Actions */}
+          <div className="flex items-center justify-between">
+            {/* App Title */}
+            <div className="flex items-center gap-2 text-accent">
+              <Timer size={24} className="sm:w-7 sm:h-7" />
+              <span className="text-lg sm:text-xl font-black tracking-tight uppercase">
+                TempoTread
+              </span>
+            </div>
+
+            {/* Login & Settings */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {/* handle login */}}
+                className="text-xs sm:text-sm px-2 sm:px-3"
+              >
+                Log In
+              </Button>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2.5 sm:p-3 glass rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all hover:scale-110 active:scale-95"
+                title="Settings & Library"
+              >
+                <Settings size={18} className="sm:w-5 sm:h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom Row: Workout Title & Duration */}
+          <div className="w-full">
             <input
               value={workoutTitle}
               onChange={(e) => setWorkoutTitle(e.target.value)}
-              className="text-xl md:text-3xl lg:text-5xl font-black tracking-tighter text-accent bg-transparent border-none p-0 focus:ring-0 w-full uppercase truncate"
+              className="text-xl md:text-3xl lg:text-5xl font-black tracking-tighter text-accent bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full uppercase truncate"
               aria-label="Workout title"
             />
             <div className="text-left mt-1">
@@ -1459,6 +1483,7 @@ export default function App() {
                       cy="50"
                       r="45"
                       className="fill-none stroke-[6]"
+                      initial={{ strokeDashoffset: 0 }}
                       animate={{
                         stroke: themeColor,
                         strokeDashoffset:
