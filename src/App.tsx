@@ -15,8 +15,6 @@ import {
   MinusCircle,
   Settings,
   Timer,
-  Activity,
-  TrendingUp,
   X,
   Music,
   Upload,
@@ -27,8 +25,6 @@ import {
   SkipForward,
   SkipBack,
   CheckCircle2,
-  Square,
-  LogOut,
   GripVertical,
   MoreVertical,
   Trash2,
@@ -37,16 +33,24 @@ import {
   ChevronRight,
   Bell,
 } from "lucide-react";
-import {
-  cn,
-  Interval,
-  WorkoutState,
-  COLORS,
-  buildColorGroups,
-  getGroupForInterval,
-  ColorGroup,
-} from "./lib/utils";
+import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup } from "./lib/utils";
 import { audioEngine } from "./lib/audio";
+import { LoginButton } from "./components/LoginButton";
+import { auth } from "./lib/firebase";
+import {
+  saveSettings,
+  loadSettings,
+  saveWorkout,
+  loadWorkout,
+  uploadAudioTrack,
+  deleteAudioTrack,
+  loadAudioLibrary,
+  uploadCustomAlarm,
+  saveWorkoutToLibrary,
+  loadSavedWorkouts,
+  deleteSavedWorkoutFromLibrary,
+} from "./lib/firebaseSync";
+import type { Settings as FirebaseSettings } from "./lib/firebaseSync";
 
 // --- Components ---
 
@@ -106,7 +110,7 @@ const Button = ({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap",
+        "inline-flex items-center justify-center gap-2 rounded-lg transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap cursor-pointer",
         variants[variant],
         sizes[size],
         className,
@@ -199,16 +203,12 @@ const IntervalCard = ({
   };
 
   return (
-    <Reorder.Item
-      value={interval}
-      dragListener={false}
-      dragControls={dragControls}
-      transition={{ type: "spring", stiffness: 600, damping: 30 }}
-      style={{ zIndex: isAnyMenuOpen ? 50 : 1, position: "relative" }}
+    <div
       className={cn(
-        "glass rounded-2xl overflow-hidden",
+        "glass rounded-2xl overflow-hidden relative",
         isAnyMenuOpen && "z-50",
       )}
+      style={{ transform: 'translateZ(0)' }}
       data-interval-id={interval.id}
     >
       <div ref={cardRef} className="relative flex flex-row w-full">
@@ -242,14 +242,14 @@ const IntervalCard = ({
           </button>
         </div>
 
-        {/* Swipeable Card Content */}
+        {/* Swipeable Card Content - using native transform for performance */}
         <motion.div
           drag="x"
           dragConstraints={{ left: -110, right: 0 }}
           dragElastic={0}
           onDragEnd={handleDragEnd}
           animate={controls}
-          style={{ x }}
+          style={{ x, willChange: 'transform' }}
           className="flex flex-1 flex-row bg-bg relative z-10 group"
         >
           {/* Full Height Drag Handle */}
@@ -515,7 +515,7 @@ const IntervalCard = ({
           </div>
         </motion.div>
       </div>
-    </Reorder.Item>
+    </div>
   );
 };
 
@@ -783,6 +783,10 @@ export default function App() {
   >([]);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Firebase auth state
+  const [user, setUser] = useState(auth.currentUser);
+  const [audioStoragePaths, setAudioStoragePaths] = useState<Record<string, string>>({});
+
   // Alarm settings state
   const [alarmVolume, setAlarmVolume] = useState(0.5);
   const [alarmPreset, setAlarmPreset] = useState<
@@ -792,15 +796,81 @@ export default function App() {
   const [halfwaySoundEnabled, setHalfwaySoundEnabled] = useState(false);
   const alarmFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Save confirmation states
+  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [timelineSaved, setTimelineSaved] = useState(false);
+
   // Compute color groups from intervals
   const colorGroups = useMemo(() => buildColorGroups(intervals), [intervals]);
 
   const timerRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
 
+  // Auth listener
   useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Load-on-login: fetch user data from Firebase
+  useEffect(() => {
+    if (!user) return;
+
+    const loadUserData = async () => {
+      // Load settings
+      const settings = await loadSettings(user.uid);
+      if (settings) {
+        setWorkoutTitle(settings.workoutTitle);
+        setAlarmVolume(settings.alarmVolume);
+        setAlarmPreset(settings.alarmPreset);
+        setCustomAlarmName(settings.customAlarmName);
+        setHalfwaySoundEnabled(settings.halfwaySoundEnabled);
+      }
+
+      // Load workout
+      const workoutIntervals = await loadWorkout(user.uid);
+      if (workoutIntervals) {
+        setIntervals(workoutIntervals);
+      }
+
+      // Load audio library
+      try {
+        const audioEntries = await loadAudioLibrary(user.uid);
+        const paths: Record<string, string> = {};
+        for (const entry of audioEntries) {
+          try {
+            await audioEngine.addAudioFromURL(entry.id, entry.name, entry.downloadURL);
+            paths[entry.id] = entry.storagePath;
+          } catch (audioErr) {
+            console.error(`Failed to load audio ${entry.name}:`, audioErr);
+            // Skip this track but continue loading others
+          }
+        }
+        setAudioStoragePaths(paths);
+        setAudioLibrary(audioEngine.getAudioLibrary());
+      } catch (err) {
+        console.error("Failed to load audio library:", err);
+      }
+
+      // Load saved workouts library from Firestore
+      try {
+        const workouts = await loadSavedWorkouts(user.uid);
+        setSavedWorkouts(workouts);
+      } catch (err) {
+        console.error("Failed to load saved workouts:", err);
+      }
+    };
+
+    loadUserData();
+  }, [user]);
+
+  useEffect(() => {
+    // Only load from localStorage if user is not logged in (fallback)
+    if (user) return;
+
     const saved = localStorage.getItem("tempotread_workouts");
     if (saved) {
       try {
@@ -835,8 +905,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("tempotread_workouts", JSON.stringify(savedWorkouts));
-  }, [savedWorkouts]);
+    // Only persist to localStorage when user is not logged in
+    if (!user) {
+      localStorage.setItem("tempotread_workouts", JSON.stringify(savedWorkouts));
+    }
+  }, [savedWorkouts, user]);
 
   // Save alarm settings when they change
   useEffect(() => {
@@ -851,16 +924,27 @@ export default function App() {
     audioEngine.setAlarmPreset(alarmPreset);
   }, [alarmVolume, alarmPreset, customAlarmName, halfwaySoundEnabled]);
 
-  const saveCurrentWorkout = () => {
+  const saveCurrentWorkout = async () => {
     const newWorkout = {
       id: Math.random().toString(36).substr(2, 9),
       title: workoutTitle,
       intervals: [...intervals],
     };
+
+    // If logged in, save to Firestore first
+    if (user) {
+      try {
+        await saveWorkoutToLibrary(user.uid, newWorkout);
+      } catch (err) {
+        console.error("Failed to save workout to Firestore:", err);
+        // Still update local state even if Firestore fails
+      }
+    }
+
     setSavedWorkouts((prev) => [newWorkout, ...prev]);
   };
 
-  const loadWorkout = (workout: {
+  const loadSavedWorkout = (workout: {
     id: string;
     title: string;
     intervals: Interval[];
@@ -870,7 +954,17 @@ export default function App() {
     setShowSettings(false);
   };
 
-  const deleteSavedWorkout = (id: string) => {
+  const deleteSavedWorkout = async (id: string) => {
+    // If logged in, delete from Firestore first
+    if (user) {
+      try {
+        await deleteSavedWorkoutFromLibrary(user.uid, id);
+      } catch (err) {
+        console.error("Failed to delete workout from Firestore:", err);
+        // Still update local state even if Firestore fails
+      }
+    }
+
     setSavedWorkouts((prev) => prev.filter((w) => w.id !== id));
   };
 
@@ -1009,7 +1103,24 @@ export default function App() {
 
       try {
         for (const file of supportedFiles) {
-          await audioEngine.addCustomAudio(file);
+          const id = crypto.randomUUID();
+
+          if (user) {
+            // Upload to Firebase when logged in
+            try {
+              const entry = await uploadAudioTrack(user.uid, file, id);
+              await audioEngine.addAudioFromURL(entry.id, entry.name, entry.downloadURL);
+              setAudioStoragePaths((prev) => ({ ...prev, [id]: entry.storagePath }));
+            } catch (err) {
+              console.error("Failed to upload/load Firebase audio:", err);
+              alert("Audio uploaded to cloud but couldn't load due to CORS. Falling back to local.");
+              // Fallback to local
+              await audioEngine.addCustomAudio(file);
+            }
+          } else {
+            // Fallback: local only
+            await audioEngine.addCustomAudio(file);
+          }
         }
         setAudioLibrary(audioEngine.getAudioLibrary());
       } catch (err) {
@@ -1024,9 +1135,19 @@ export default function App() {
   };
 
   const removeAudio = (id: string) => {
+    // Fire Firebase delete in background if user is logged in
+    if (user && audioStoragePaths[id]) {
+      deleteAudioTrack(user.uid, id, audioStoragePaths[id]);
+      setAudioStoragePaths((prev) => {
+        const { [id]: _, ...rest } = prev;
+        return rest;
+      });
+    }
+
+    // Local cleanup (synchronous)
     audioEngine.removeAudio(id);
     setAudioLibrary(audioEngine.getAudioLibrary());
-    // Clear audioId from intervals that used it
+    // Clear audioId from any intervals that used this track
     setIntervals(
       intervals.map((i) => ({
         ...i,
@@ -1218,14 +1339,7 @@ export default function App() {
 
             {/* Login & Settings */}
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {/* handle login */}}
-                className="text-xs sm:text-sm px-2 sm:px-3"
-              >
-                Log In
-              </Button>
+              <LoginButton />
               <button
                 onClick={() => setShowSettings(true)}
                 className="p-2.5 sm:p-3 glass rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all hover:scale-110 active:scale-95"
@@ -1235,45 +1349,56 @@ export default function App() {
               </button>
             </div>
           </div>
+        </header>
 
-          {/* Bottom Row: Workout Title & Duration */}
-          <div className="w-full">
+        {/* Sticky Workout Title & Duration - Outside flex container */}
+        <div className="sticky top-0 z-30 bg-bg/95 backdrop-blur-md py-3 border-b border-white/5 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-12 lg:px-12">
             <input
               value={workoutTitle}
               onChange={(e) => setWorkoutTitle(e.target.value)}
               className="text-xl md:text-3xl lg:text-5xl font-black tracking-tighter text-accent bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full uppercase truncate"
               aria-label="Workout title"
             />
-            <div className="text-left mt-1">
-              <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">
-                {state === "running" ||
-                state === "paused" ||
-                state === "countdown"
-                  ? "Remaining"
-                  : "Total Duration"}
-              </p>
-              <p className="text-lg font-mono text-white/80">
-                {state === "running" ||
-                state === "paused" ||
-                state === "countdown"
-                  ? `${Math.floor((totalDuration - totalTimeElapsed) / 60)}:${((totalDuration - totalTimeElapsed) % 60).toString().padStart(2, "0")}`
-                  : `${Math.floor(totalDuration / 60)}:${(totalDuration % 60).toString().padStart(2, "0")}`}
-              </p>
+            <div className="flex items-end justify-between mt-1">
+              <div className="text-left">
+                <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">
+                  {state === "running" ||
+                  state === "paused" ||
+                  state === "countdown"
+                    ? "Remaining"
+                    : "Total Duration"}
+                </p>
+                <p className="text-lg font-mono text-white/80">
+                  {state === "running" ||
+                  state === "paused" ||
+                  state === "countdown"
+                    ? `${Math.floor((totalDuration - totalTimeElapsed) / 60)}:${((totalDuration - totalTimeElapsed) % 60).toString().padStart(2, "0")}`
+                    : `${Math.floor(totalDuration / 60)}:${(totalDuration % 60).toString().padStart(2, "0")}`}
+                </p>
+              </div>
+
+              {/* Save Timeline Button */}
+              {user && (
+                <button
+                  onClick={async () => {
+                    await saveWorkout(user.uid, intervals);
+                    setTimelineSaved(true);
+                    setTimeout(() => setTimelineSaved(false), 2000);
+                  }}
+                  className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-accent hover:bg-accent/10 transition-all border border-accent/20 text-[10px] font-bold uppercase tracking-wider"
+                >
+                  <Save size={12} />
+                  {timelineSaved ? "Saved!" : "Save"}
+                </button>
+              )}
             </div>
           </div>
-        </header>
 
-        <main className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8 items-start">
-          {/* Left Column: Timeline */}
-          <div
-            className={cn(
-              "lg:col-span-7 space-y-3 sm:space-y-4 pb-20 lg:pb-0",
-              state !== "idle" &&
-                "hidden lg:block opacity-20 pointer-events-none blur-[2px] transition-all duration-700",
-            )}
-          >
+        <main className="flex-1 flex flex-col gap-4">
+          {/* Timeline Section */}
+          <div className="flex flex-col h-[calc(100vh-280px)]">
             {/* Workout Timeline Guide - Sticky with Navigation */}
-            <div className="sticky top-0 z-20 bg-bg/95 backdrop-blur-sm py-2 -mx-4 px-4 lg:mx-0 lg:px-0 lg:bg-transparent lg:backdrop-blur-none lg:static">
+            <div className="sticky top-0 z-20 bg-bg py-2 -mx-4 px-4 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -1334,102 +1459,107 @@ export default function App() {
               </div>
             </div>
 
-            <Reorder.Group
-              axis="y"
-              values={intervals}
-              onReorder={setIntervals}
-              className="space-y-2 lg:overflow-y-auto lg:max-h-[calc(100vh-320px)] pr-2 pb-5"
-            >
-              <AnimatePresence mode="popLayout">
-                {intervals.map((interval) => (
-                  <IntervalCard
-                    key={interval.id}
-                    interval={interval}
-                    onDelete={() => deleteInterval(interval.id)}
-                    onDuplicate={() =>
-                      duplicateInterval(intervals.indexOf(interval))
-                    }
-                    onUpdate={(updates) => updateInterval(interval.id, updates)}
-                    onOpenPlaylist={() => setEditingIntervalId(interval.id)}
-                    onOpenNotes={(id) => setViewingNotesId(id)}
-                    audioLibrary={audioLibrary}
-                    globalHalfwayAlert={halfwaySoundEnabled}
-                  />
-                ))}
-              </AnimatePresence>
-            </Reorder.Group>
-
-            <button
-              onClick={addInterval}
-              className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 py-3 px-6 border border-dashed border-white/10 rounded-full flex items-center justify-center gap-2 group glass hover:bg-white/10 transition-all shadow-xl lg:static lg:bottom-auto lg:left-auto lg:translate-x-0 lg:w-full lg:py-3 lg:rounded-xl lg:mt-2 lg:shadow-none"
-            >
-              <Plus
-                size={16}
-                className="group-hover:scale-110 transition-transform text-white/40"
-              />
-              <span className="text-xs font-bold uppercase tracking-wider text-white/40 group-hover:text-white/80">
-                Add Interval
-              </span>
-            </button>
+            <div className="flex-1 overflow-y-auto pr-2 space-y-2 pb-4 pt-2">
+              {intervals.map((interval) => (
+                <IntervalCard
+                  key={interval.id}
+                  interval={interval}
+                  onDelete={() => deleteInterval(interval.id)}
+                  onDuplicate={() =>
+                    duplicateInterval(intervals.indexOf(interval))
+                  }
+                  onUpdate={(updates) => updateInterval(interval.id, updates)}
+                  onOpenPlaylist={() => setEditingIntervalId(interval.id)}
+                  onOpenNotes={(id) => setViewingNotesId(id)}
+                  audioLibrary={audioLibrary}
+                  globalHalfwayAlert={halfwaySoundEnabled}
+                />
+              ))}
+            </div>
           </div>
 
-          {/* Right Column: Active State / Controls */}
-          <div className="lg:col-span-5 lg:sticky lg:top-12">
-            {state === "idle" ? (
+          {/* Add Interval Button - Fixed above Let's Go */}
+          <button
+            onClick={addInterval}
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 py-1.5 px-10 bg-[#1a1a2e] rounded-full flex items-center justify-center gap-2 border border-white/10 cursor-pointer"
+          >
+            <Plus
+              size={14}
+              className="text-white/50"
+            />
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
+              Add Interval
+            </span>
+          </button>
+
+          {/* Workout Controls Section - Only Let's Go button inside main */}
+          <div className="flex-shrink-0">
+            {state === "idle" && (
               <Button
                 variant="solid"
                 size="md"
                 onClick={startWorkout}
-                className="fixed bottom-4 left-4 right-4 lg:static lg:w-full rounded-2xl py-3 font-black text-base uppercase tracking-[0.2em] shadow-2xl z-30"
+                className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md rounded-2xl py-3 font-black text-base uppercase tracking-[0.2em]"
               >
                 <Play size={20} fill="currentColor" />
                 Let's go!
               </Button>
-            ) : state === "countdown" ? (
-              <div className="glass p-6 lg:p-8 rounded-[2rem] flex flex-col justify-center items-center text-center min-h-[320px]">
-                <motion.div
-                  key={countdownValue}
-                  initial={{ scale: 2, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0, opacity: 0 }}
-                  className="text-[10rem] font-mono font-black leading-none"
-                  style={{ color: COLORS[0] }}
-                >
-                  {countdownValue}
-                </motion.div>
-                <p className="mt-4 text-white/40 font-mono uppercase tracking-[0.3em] text-sm">
-                  Get Ready
-                </p>
+            )}
+          </div>
+        </main>
 
-                {currentSong && (
-                  <div className="mt-8 w-full max-w-xs">
-                    <p className="text-[10px] font-mono text-white/40 uppercase mb-3 flex items-center justify-center gap-2">
-                      <Music
-                        size={12}
-                        className="animate-pulse"
-                        style={{ color: themeColor }}
-                      />{" "}
-                      Now Playing
+        {/* Countdown Overlay - Outside main */}
+        {state === "countdown" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="glass p-6 rounded-[2rem] flex flex-col justify-center items-center text-center min-h-[320px] max-w-md w-full">
+              <motion.div
+                key={countdownValue}
+                initial={{ scale: 2, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                className="text-[10rem] font-mono font-black leading-none"
+                style={{ color: COLORS[0] }}
+              >
+                {countdownValue}
+              </motion.div>
+              <p className="mt-4 text-white/40 font-mono uppercase tracking-[0.3em] text-sm">
+                Get Ready
+              </p>
+
+              {currentSong && (
+                <div className="mt-8 w-full max-w-xs">
+                  <p className="text-[10px] font-mono text-white/40 uppercase mb-3 flex items-center justify-center gap-2">
+                    <Music
+                      size={12}
+                      className="animate-pulse"
+                      style={{ color: themeColor }}
+                    />{" "}
+                    Now Playing
+                  </p>
+                  <div className="glass bg-white/5 p-4 rounded-2xl">
+                    <p className="text-sm font-bold truncate mb-2">
+                      {currentSong.name}
                     </p>
-                    <div className="glass bg-white/5 p-4 rounded-2xl">
-                      <p className="text-sm font-bold truncate mb-2">
-                        {currentSong.name}
-                      </p>
-                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div
-                          className="h-full transition-all duration-500"
-                          style={{
-                            width: `${(currentSong.currentTime / currentSong.duration) * 100}%`,
-                            backgroundColor: themeColor,
-                          }}
-                        />
-                      </div>
+                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full transition-all duration-500"
+                        style={{
+                          width: `${(currentSong.currentTime / currentSong.duration) * 100}%`,
+                          backgroundColor: themeColor,
+                        }}
+                      />
                     </div>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="glass p-6 lg:p-8 rounded-[2rem] flex flex-col justify-center items-center text-center relative overflow-hidden">
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Workout Timer Overlay - Outside main */}
+        {(state === "running" || state === "paused" || state === "finished") && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="glass p-6 rounded-[2rem] flex flex-col justify-center items-center text-center relative overflow-hidden w-full max-w-md max-h-[90vh] overflow-y-auto">
                 {/* Exit Button */}
                 <button
                   onClick={resetWorkout}
@@ -1440,12 +1570,12 @@ export default function App() {
                 </button>
 
                 {/* Timer Display */}
-                <div className="flex flex-col items-center mb-4 sm:mb-6">
+                <div className="flex flex-col items-center mb-4">
                   <p className="text-[10px] font-mono text-white/40 uppercase tracking-[0.3em] mb-2">
                     {state === "finished" ? "FINISHED" : "NOW"}
                   </p>
                   <h1
-                    className="text-3xl sm:text-4xl md:text-5xl font-black text-center mb-1"
+                    className="text-3xl font-black text-center mb-1"
                     style={{ color: themeColor }}
                   >
                     {state === "finished"
@@ -1463,7 +1593,7 @@ export default function App() {
                 {/* Progress Ring */}
                 <div
                   key={currentIndex}
-                  className="relative w-48 h-48 sm:w-56 sm:h-56 md:w-72 md:h-72 flex items-center justify-center mb-4 sm:mb-6"
+                  className="relative w-48 h-48 flex items-center justify-center mb-4"
                 >
                   <svg
                     viewBox="0 0 100 100"
@@ -1502,7 +1632,7 @@ export default function App() {
                   </svg>
 
                   <div className="flex flex-col items-center z-10 px-2">
-                    <p className="text-5xl sm:text-6xl md:text-7xl font-mono font-black tabular-nums text-white leading-none">
+                    <p className="text-5xl font-mono font-black tabular-nums text-white leading-none">
                       {Math.floor(timeLeft / 60)}:
                       {(timeLeft % 60).toString().padStart(2, "0")}
                     </p>
@@ -1538,16 +1668,16 @@ export default function App() {
                 )}
 
                 <div className="w-full space-y-4">
-                  <div className="flex justify-center items-center gap-4 sm:gap-6">
+                  <div className="flex justify-center items-center gap-4">
                     <Button
                       variant="secondary"
                       size="icon"
                       onClick={previousInterval}
                       disabled={currentIndex === 0 || state === "finished"}
-                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-full disabled:opacity-20"
+                      className="w-12 h-12 rounded-full disabled:opacity-20"
                       title="Previous Interval"
                     >
-                      <SkipBack size={20} className="sm:w-6 sm:h-6" />
+                      <SkipBack size={20} />
                     </Button>
                     <Button
                       variant="white"
@@ -1559,7 +1689,7 @@ export default function App() {
                           state === "running" ? pauseWorkout() : startWorkout();
                         }
                       }}
-                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full"
+                      className="w-16 h-16 rounded-full"
                       title={
                         state === "finished"
                           ? "Restart Workout"
@@ -1569,17 +1699,16 @@ export default function App() {
                       }
                     >
                       {state === "finished" ? (
-                        <RotateCcw size={28} className="sm:w-8 sm:h-8" />
+                        <RotateCcw size={28} />
                       ) : state === "running" ? (
                         <Pause
                           size={28}
-                          className="sm:w-8 sm:h-8"
                           fill="currentColor"
                         />
                       ) : (
                         <Play
                           size={28}
-                          className="sm:w-8 sm:h-8 ml-1"
+                          className="ml-1"
                           fill="currentColor"
                         />
                       )}
@@ -1589,7 +1718,7 @@ export default function App() {
                       size="icon"
                       onClick={nextInterval}
                       disabled={state === "finished"}
-                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-full disabled:opacity-20"
+                      className="w-12 h-12 rounded-full disabled:opacity-20"
                       title={
                         currentIndex === intervals.length - 1
                           ? "Finish Workout"
@@ -1597,16 +1726,16 @@ export default function App() {
                       }
                     >
                       {currentIndex === intervals.length - 1 ? (
-                        <CheckCircle2 size={24} className="sm:w-7 sm:h-7" />
+                        <CheckCircle2 size={24} />
                       ) : (
-                        <SkipForward size={24} className="sm:w-7 sm:h-7" />
+                        <SkipForward size={24} />
                       )}
                     </Button>
                   </div>
 
                   {/* Interval Progress Cards */}
                   <div className="w-full overflow-hidden">
-                    <div className="flex gap-2 sm:gap-2.5 justify-center flex-wrap">
+                    <div className="flex gap-2 justify-center flex-wrap">
                       {intervals.map((interval, index) => {
                         const isPast =
                           index < currentIndex || state === "finished";
@@ -1623,7 +1752,7 @@ export default function App() {
                             className="flex flex-col items-center gap-1.5"
                           >
                             <div
-                              className="h-2 sm:h-2.5 rounded-full transition-all duration-300"
+                              className="h-2 rounded-full transition-all duration-300"
                               style={{
                                 width: `${Math.min(80, Math.max(40, 120 / intervals.length))}px`,
                                 backgroundColor: isActive
@@ -1634,7 +1763,7 @@ export default function App() {
                               }}
                             />
                             <p
-                              className="text-[10px] sm:text-xs font-medium truncate max-w-[80px] sm:max-w-[100px] text-center"
+                              className="text-[10px] font-medium truncate max-w-[80px] text-center"
                               style={{
                                 color: isActive
                                   ? interval.color
@@ -1692,9 +1821,8 @@ export default function App() {
                   )}
                 </div>
               </div>
-            )}
-          </div>
-        </main>
+            </div>
+          )}
 
         {/* Settings Modal */}
         <AnimatePresence>
@@ -1703,9 +1831,9 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-bg/95 backdrop-blur-xl p-4 md:p-8 flex flex-col items-center justify-center"
+              className="fixed inset-0 z-50 bg-bg/95 backdrop-blur-xl p-4 flex flex-col items-center justify-center"
             >
-              <div className="w-full max-w-2xl flex flex-col h-full max-h-[90vh] glass p-5 md:p-6 rounded-[2.5rem] neo-shadow relative">
+              <div className="w-full max-w-2xl flex flex-col h-full max-h-[90vh] glass p-5 rounded-[2.5rem] neo-shadow relative">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold tracking-tight">
                     System Settings
@@ -1740,7 +1868,7 @@ export default function App() {
                           >
                             <div
                               className="flex-1 cursor-pointer"
-                              onClick={() => loadWorkout(workout)}
+                              onClick={() => loadSavedWorkout(workout)}
                             >
                               <p className="font-bold text-lg">
                                 {workout.title}
@@ -1802,7 +1930,7 @@ export default function App() {
                         <label className="text-sm text-white/70">
                           Alarm Sound
                         </label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           {[
                             {
                               value: "digital",
@@ -1952,6 +2080,30 @@ export default function App() {
                           />
                         </button>
                       </div>
+
+                      {/* Save Settings Button */}
+                      {user && (
+                        <div className="pt-4 border-t border-white/10">
+                          <button
+                            onClick={async () => {
+                              await saveSettings(user.uid, {
+                                workoutTitle,
+                                alarmVolume,
+                                alarmPreset,
+                                customAlarmName,
+                                customAlarmStoragePath: null,
+                                halfwaySoundEnabled,
+                              });
+                              setSettingsSaved(true);
+                              setTimeout(() => setSettingsSaved(false), 2000);
+                            }}
+                            className="w-full py-3 bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-accent hover:bg-accent/20 transition-colors"
+                          >
+                            <Save size={16} />
+                            {settingsSaved ? "Saved!" : "Save Settings"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </section>
 

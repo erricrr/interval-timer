@@ -55,6 +55,18 @@ class AudioEngine {
     return id;
   }
 
+  async addAudioFromURL(id: string, name: string, url: string): Promise<void> {
+    this.init();
+    if (!this.ctx) throw new Error("Audio context not initialized");
+
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    const buffer = await this.ctx.decodeAudioData(arrayBuffer);
+
+    this.customBuffers.set(id, { buffer, name });
+  }
+
   getAudioLibrary() {
     return Array.from(this.customBuffers.entries()).map(([id, data]) => ({
       id,
