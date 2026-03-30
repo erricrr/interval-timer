@@ -1656,26 +1656,26 @@ export default function App() {
                   </div>
                 </div>
 
-                {currentInterval.notes && (
+                {currentInterval.notes && state !== "finished" && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-6 glass border p-3 rounded-2xl max-w-md w-full text-center"
+                    className="mb-3 glass border p-2.5 rounded-2xl max-w-md w-full text-center"
                     style={{
                       backgroundColor: `${currentInterval.color}10`,
                       borderColor: `${currentInterval.color}20`,
                     }}
                   >
                     <div
-                      className="flex items-center justify-center gap-2 mb-2"
+                      className="flex items-center justify-center gap-2 mb-1.5"
                       style={{ color: `${currentInterval.color}90` }}
                     >
-                      <FileText size={12} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">
+                      <FileText size={11} />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
                         Interval Notes
                       </span>
                     </div>
-                    <p className="text-xs text-white/70 italic leading-relaxed break-words">
+                    <p className="text-[11px] text-white/70 italic break-words">
                       {currentInterval.notes}
                     </p>
                   </motion.div>
@@ -1795,20 +1795,20 @@ export default function App() {
                   </div>
 
                   {currentSong && (
-                    <div className="glass bg-white/5 p-6 rounded-2xl text-left">
-                      <div className="flex items-center justify-between mb-4">
-                        <p className="text-[10px] font-mono text-white/40 uppercase tracking-widest flex items-center gap-2">
-                          <Music size={12} style={{ color: themeColor }} /> Now
+                    <div className="glass bg-white/5 p-4 rounded-2xl text-left">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-[10px] font-mono text-white/40 uppercase tracking-wider flex items-center gap-1.5">
+                          <Music size={11} style={{ color: themeColor }} /> Now
                           Playing
                         </p>
                         <span className="text-[10px] font-mono text-white/20">
                           {currentSong.index + 1} / {currentSong.totalSongs}
                         </span>
                       </div>
-                      <p className="text-sm font-bold truncate mb-3">
+                      <p className="text-sm font-bold truncate mb-2">
                         {currentSong.name}
                       </p>
-                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mb-2">
+                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mb-1">
                         <div
                           className="h-full transition-all duration-500"
                           style={{
@@ -1817,7 +1817,7 @@ export default function App() {
                           }}
                         />
                       </div>
-                      <div className="flex justify-between text-[9px] font-mono text-white/30">
+                      <div className="flex justify-between text-[10px] font-mono text-white/30">
                         <span>
                           {Math.floor(currentSong.currentTime / 60)}:
                           {Math.floor(currentSong.currentTime % 60)
