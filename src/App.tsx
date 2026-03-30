@@ -33,7 +33,7 @@ import {
   ChevronRight,
   Bell,
 } from "lucide-react";
-import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup } from "./lib/utils";
+import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup, PlaylistTrack } from "./lib/utils";
 import { audioEngine } from "./lib/audio";
 import { LoginButton } from "./components/LoginButton";
 import { auth } from "./lib/firebase";
@@ -155,6 +155,7 @@ const Button = ({
 interface IntervalCardProps {
   key?: React.Key;
   interval: Interval;
+  colorGroups: ColorGroup[];
   onDelete: () => void;
   onDuplicate: () => void;
   onUpdate: (updates: Partial<Interval>) => void;
@@ -166,6 +167,7 @@ interface IntervalCardProps {
 
 const IntervalCard = ({
   interval,
+  colorGroups,
   onDelete,
   onDuplicate,
   onUpdate,
@@ -183,6 +185,14 @@ const IntervalCard = ({
   const swipeThreshold = -80; // Threshold to snap open
   const snapOpenX = -100; // How far the card slides to reveal buttons
   const snapClosedX = 0;
+
+  // Get the merged playlist for this interval's color group
+  const colorGroup = useMemo(() =>
+    getGroupForInterval(colorGroups, interval.color),
+    [colorGroups, interval.color]
+  );
+  const mergedPlaylist = colorGroup?.mergedPlaylist || [];
+  const trackCount = mergedPlaylist.length;
 
   // Refs for click-outside detection
   const actionsButtonRef = useRef<HTMLButtonElement>(null);
@@ -510,7 +520,6 @@ const IntervalCard = ({
 
             {/* Bottom Section: Track Count & Actions */}
             <div className="flex items-center gap-3 pt-2 border-t border-white/5">
-              {/* Unified Tracks Button - combines icon, count, and add action */}
               <button
                 onClick={onOpenPlaylist}
                 className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all group"
@@ -519,19 +528,19 @@ const IntervalCard = ({
                   size={12}
                   className={cn(
                     "transition-colors",
-                    (interval.playlist || []).length > 0
+                    trackCount > 0
                       ? "text-[var(--interval-color)]"
                       : "text-white/40 group-hover:text-white/60"
                   )}
-                  style={{ color: (interval.playlist || []).length > 0 ? interval.color : undefined }}
+                  style={{ color: trackCount > 0 ? interval.color : undefined }}
                 />
                 <span
                   className={cn(
                     "text-[10px] font-mono font-medium",
-                    (interval.playlist || []).length > 0 ? "text-white/80" : "text-white/40"
+                    trackCount > 0 ? "text-white/80" : "text-white/40"
                   )}
                 >
-                  {(interval.playlist || []).length} Tracks
+                  {trackCount} Tracks
                 </span>
                 <Plus
                   size={10}
@@ -561,9 +570,10 @@ const IntervalCard = ({
 
 interface PlaylistDrawerProps {
   interval: Interval;
+  colorGroups: ColorGroup[];
   audioLibrary: { id: string; name: string }[];
   onClose: () => void;
-  onUpdate: (updates: Partial<Interval>) => void;
+  onUpdatePlaylist: (playlist: PlaylistTrack[]) => void;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveAudio: (id: string) => void;
   isUploading?: boolean;
@@ -571,15 +581,23 @@ interface PlaylistDrawerProps {
 
 const PlaylistDrawer = ({
   interval,
+  colorGroups,
   audioLibrary,
   onClose,
-  onUpdate,
+  onUpdatePlaylist,
   onFileUpload,
   onRemoveAudio,
   isUploading = false,
 }: PlaylistDrawerProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [audioToDelete, setAudioToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  // Get the merged playlist for this interval's color group
+  const colorGroup = useMemo(() =>
+    getGroupForInterval(colorGroups, interval.color),
+    [colorGroups, interval.color]
+  );
+  const mergedPlaylist = colorGroup?.mergedPlaylist || [];
 
   const formatAudioName = (name: string) => {
     // Remove file extension
@@ -626,17 +644,17 @@ const PlaylistDrawer = ({
                 Current Tracks
               </h3>
               <span className="text-[10px] font-mono text-white/30">
-                {(interval.playlist || []).length} Total
+                {mergedPlaylist.length} Total
               </span>
             </div>
 
             <Reorder.Group
               axis="y"
-              values={interval.playlist || []}
-              onReorder={(newPlaylist) => onUpdate({ playlist: newPlaylist })}
+              values={mergedPlaylist}
+              onReorder={(newPlaylist) => onUpdatePlaylist(newPlaylist)}
               className="space-y-2"
             >
-              {(interval.playlist || []).length === 0 ? (
+              {mergedPlaylist.length === 0 ? (
                 <div className="p-8 border-2 border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center text-center gap-3">
                   <Music size={24} className="text-white/10" />
                   <p className="text-xs text-white/20 italic">
@@ -644,7 +662,7 @@ const PlaylistDrawer = ({
                   </p>
                 </div>
               ) : (
-                (interval.playlist || []).map((track) => {
+                mergedPlaylist.map((track) => {
                   const audio = audioLibrary.find(
                     (a) => a.id === track.audioId,
                   );
@@ -665,10 +683,10 @@ const PlaylistDrawer = ({
                       </div>
                       <button
                         onClick={() => {
-                          const nextPlaylist = (interval.playlist || []).filter(
+                          const nextPlaylist = mergedPlaylist.filter(
                             (t) => t.instanceId !== track.instanceId,
                           );
-                          onUpdate({ playlist: nextPlaylist });
+                          onUpdatePlaylist(nextPlaylist);
                         }}
                         className="p-1.5 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
                         aria-label="Remove track"
@@ -735,17 +753,15 @@ const PlaylistDrawer = ({
                     {/* Main clickable area - adds to playlist */}
                     <button
                       onClick={() =>
-                        onUpdate({
-                          playlist: [
-                            ...(interval.playlist || []),
-                            {
-                              instanceId: Math.random()
-                                .toString(36)
-                                .substr(2, 9),
-                              audioId: audio.id,
-                            },
-                          ],
-                        })
+                        onUpdatePlaylist([
+                          ...mergedPlaylist,
+                          {
+                            instanceId: Math.random()
+                              .toString(36)
+                              .substr(2, 9),
+                            audioId: audio.id,
+                          },
+                        ])
                       }
                       className="flex-1 flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 transition-all text-left overflow-hidden min-w-0"
                     >
@@ -882,6 +898,7 @@ export default function App() {
     { id: string; title: string; intervals: Interval[] }[]
   >([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [showNewWorkoutConfirm, setShowNewWorkoutConfirm] = useState(false);
 
   // Firebase auth state
   const [user, setUser] = useState(auth.currentUser);
@@ -1075,6 +1092,13 @@ export default function App() {
     }
 
     setSavedWorkouts((prev) => prev.filter((w) => w.id !== id));
+  };
+
+  const clearWorkout = () => {
+    setWorkoutTitle("TempoTread Session");
+    setIntervals([]);
+    resetWorkout();
+    setShowNewWorkoutConfirm(false);
   };
 
   const duplicateInterval = (index: number) => {
@@ -1412,6 +1436,13 @@ export default function App() {
     }
   };
 
+  const updatePlaylistForColorGroup = (intervalColor: string, playlist: PlaylistTrack[]) => {
+    // Update the playlist for ALL intervals with the same color
+    setIntervals(
+      intervals.map((i) => (i.color === intervalColor ? { ...i, playlist } : i)),
+    );
+  };
+
   const deleteInterval = (id: string) => {
     setIntervals(intervals.filter((i) => i.id !== id));
   };
@@ -1509,7 +1540,15 @@ export default function App() {
                 </p>
               </div>
 
-              {/* Save Timeline Button */}
+              {/* New Workout Button */}
+              <button
+                onClick={() => setShowNewWorkoutConfirm(true)}
+                className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-white/70 hover:text-white hover:bg-white/10 transition-all border border-white/10 text-[10px] font-bold uppercase tracking-wider mr-4"
+                title="Start new workout"
+              >
+                <Plus size={12} />
+                 New Session
+              </button>
               {user && (
                 <button
                   onClick={async () => {
@@ -1621,6 +1660,7 @@ export default function App() {
                 >
                   <IntervalCard
                     interval={interval}
+                    colorGroups={colorGroups}
                     onDelete={() => deleteInterval(interval.id)}
                     onDuplicate={() =>
                       duplicateInterval(intervals.indexOf(interval))
@@ -1646,7 +1686,7 @@ export default function App() {
               className="text-white/50"
             />
             <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
-              Add Interval
+              Interval
             </span>
           </button>
 
@@ -2331,9 +2371,15 @@ export default function App() {
           {editingIntervalId && (
             <PlaylistDrawer
               interval={intervals.find((i) => i.id === editingIntervalId)!}
+              colorGroups={colorGroups}
               audioLibrary={audioLibrary}
               onClose={() => setEditingIntervalId(null)}
-              onUpdate={(updates) => updateInterval(editingIntervalId, updates)}
+              onUpdatePlaylist={(playlist) => {
+                const interval = intervals.find((i) => i.id === editingIntervalId);
+                if (interval) {
+                  updatePlaylistForColorGroup(interval.color, playlist);
+                }
+              }}
               onFileUpload={handleFileUpload}
               onRemoveAudio={removeAudio}
               isUploading={isUploading}
@@ -2405,6 +2451,57 @@ export default function App() {
                     }}
                   />
                 </motion.div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* New Workout Confirmation Dialog */}
+        <AnimatePresence>
+          {showNewWorkoutConfirm && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110]"
+                onClick={() => setShowNewWorkoutConfirm(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="fixed inset-0 z-[111] flex items-center justify-center pointer-events-none p-4"
+              >
+                <div className="glass border border-white/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-1">
+                        Start New Workout?
+                      </h3>
+                      <p className="text-sm text-white/60">
+                        This will clear all current intervals and reset the workout title. This action cannot be undone.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="secondary"
+                      className="flex-1 py-3"
+                      onClick={() => setShowNewWorkoutConfirm(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="danger"
+                      className="flex-1 py-3"
+                      onClick={clearWorkout}
+                    >
+                      Clear & Start New
+                    </Button>
+                  </div>
+                </div>
               </motion.div>
             </>
           )}
