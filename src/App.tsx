@@ -1545,23 +1545,33 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-2 space-y-2 pb-4 pt-2">
+            <Reorder.Group
+              axis="y"
+              values={intervals}
+              onReorder={setIntervals}
+              className="flex-1 overflow-y-auto pr-2 space-y-2 pb-4 pt-2"
+            >
               {intervals.map((interval) => (
-                <IntervalCard
+                <Reorder.Item
                   key={interval.id}
-                  interval={interval}
-                  onDelete={() => deleteInterval(interval.id)}
-                  onDuplicate={() =>
-                    duplicateInterval(intervals.indexOf(interval))
-                  }
-                  onUpdate={(updates) => updateInterval(interval.id, updates)}
-                  onOpenPlaylist={() => setEditingIntervalId(interval.id)}
-                  onOpenNotes={(id) => setViewingNotesId(id)}
-                  audioLibrary={audioLibrary}
-                  globalHalfwayAlert={halfwaySoundEnabled}
-                />
+                  value={interval}
+                  className="relative"
+                >
+                  <IntervalCard
+                    interval={interval}
+                    onDelete={() => deleteInterval(interval.id)}
+                    onDuplicate={() =>
+                      duplicateInterval(intervals.indexOf(interval))
+                    }
+                    onUpdate={(updates) => updateInterval(interval.id, updates)}
+                    onOpenPlaylist={() => setEditingIntervalId(interval.id)}
+                    onOpenNotes={(id) => setViewingNotesId(id)}
+                    audioLibrary={audioLibrary}
+                    globalHalfwayAlert={halfwaySoundEnabled}
+                  />
+                </Reorder.Item>
               ))}
-            </div>
+            </Reorder.Group>
           </div>
 
           {/* Add Interval Button - Fixed above Let's Go */}
