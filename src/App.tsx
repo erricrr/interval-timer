@@ -53,7 +53,35 @@ import {
 } from "./lib/firebaseSync";
 import type { Settings as FirebaseSettings } from "./lib/firebaseSync";
 
-// --- Components ---
+// Custom hook for detecting clicks outside an element
+function useClickOutside(
+  isOpen: boolean,
+  onClose: () => void,
+  excludeRefs: React.RefObject<HTMLElement | null>[]
+) {
+  // Store refs in a ref to maintain stable reference
+  const refsRef = useRef(excludeRefs);
+  refsRef.current = excludeRefs;
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (e: PointerEvent | MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      // Check if click is inside any excluded element (menu or trigger button)
+      const isInsideExcluded = refsRef.current.some(
+        (ref) => ref.current && ref.current.contains(target)
+      );
+      if (!isInsideExcluded) {
+        onClose();
+      }
+    };
+
+    // Use pointerdown for both mouse and touch, capture phase to ensure we get it first
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [isOpen, onClose]);
+}
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?:
@@ -154,6 +182,18 @@ const IntervalCard = ({
   const swipeThreshold = -80; // Threshold to snap open
   const snapOpenX = -100; // How far the card slides to reveal buttons
   const snapClosedX = 0;
+
+  // Refs for click-outside detection
+  const actionsButtonRef = useRef<HTMLButtonElement>(null);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const colorButtonRef = useRef<HTMLButtonElement>(null);
+  const colorMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close actions menu when clicking outside
+  useClickOutside(showActions, () => setShowActions(false), [actionsButtonRef, actionsMenuRef]);
+
+  // Close color picker when clicking outside
+  useClickOutside(showColorPicker, () => setShowColorPicker(false), [colorButtonRef, colorMenuRef]);
 
   const mins = Math.floor(interval.duration / 60);
   const secs = interval.duration % 60;
@@ -265,6 +305,7 @@ const IntervalCard = ({
             {/* 3 Dot Menu - Absolute positioned top right */}
             <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20">
               <Button
+                ref={actionsButtonRef}
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowActions(!showActions)}
@@ -276,44 +317,39 @@ const IntervalCard = ({
 
               <AnimatePresence>
                 {showActions && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-[60]"
-                      onClick={() => setShowActions(false)}
-                    />
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.9, x: 5 }}
-                      animate={{ opacity: 1, scale: 1, x: 0 }}
-                      exit={{ opacity: 0, scale: 0.9, x: 5 }}
-                      className="fixed z-[70] glass border border-white/10 rounded-xl p-1 w-36 overflow-hidden"
-                      style={{
-                        right: "44px",
-                        top: "8px",
+                  <motion.div
+                    ref={actionsMenuRef}
+                    initial={{ opacity: 0, scale: 0.9, x: 5 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, x: 5 }}
+                    className="fixed z-[70] glass border border-white/10 rounded-xl p-1 w-36 overflow-hidden"
+                    style={{
+                      right: "44px",
+                      top: "8px",
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        onDuplicate();
+                        setShowActions(false);
                       }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left"
                     >
-                      <button
-                        onClick={() => {
-                          onDuplicate();
-                          setShowActions(false);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left"
-                      >
-                        <Copy size={14} />
-                        Duplicate
-                      </button>
-                      <div className="h-px bg-white/5 mx-1" />
-                      <button
-                        onClick={() => {
-                          onDelete();
-                          setShowActions(false);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left"
-                      >
-                        <MinusCircle size={14} />
-                        Remove
-                      </button>
-                    </motion.div>
-                  </>
+                      <Copy size={14} />
+                      Duplicate
+                    </button>
+                    <div className="h-px bg-white/5 mx-1" />
+                    <button
+                      onClick={() => {
+                        onDelete();
+                        setShowActions(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left"
+                    >
+                      <MinusCircle size={14} />
+                      Remove
+                    </button>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
@@ -323,6 +359,7 @@ const IntervalCard = ({
               {/* Color Indicator & Picker */}
               <div className="relative shrink-0">
                 <button
+                  ref={colorButtonRef}
                   onClick={() => setShowColorPicker(!showColorPicker)}
                   className="w-1.5 h-8 sm:h-10 rounded-full shrink-0 shadow-lg transition-transform hover:scale-110 active:scale-95"
                   style={{
@@ -334,36 +371,31 @@ const IntervalCard = ({
 
                 <AnimatePresence>
                   {showColorPicker && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-30"
-                        onClick={() => setShowColorPicker(false)}
-                      />
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.9, x: -10 }}
-                        animate={{ opacity: 1, scale: 1, x: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, x: -10 }}
-                        className="absolute left-full ml-3 -top-3 z-40 glass border border-white/10 rounded-xl p-2 grid grid-cols-5 gap-2 w-[160px]"
-                      >
-                        {COLORS.map((color) => (
-                          <button
-                            key={color}
-                            onClick={() => {
-                              onUpdate({ color });
-                              setShowColorPicker(false);
-                            }}
-                            className={cn(
-                              "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
-                              interval.color === color
-                                ? "border-white"
-                                : "border-transparent",
-                            )}
-                            style={{ backgroundColor: color }}
-                            aria-label={`Select color ${color}`}
-                          />
-                        ))}
-                      </motion.div>
-                    </>
+                    <motion.div
+                      ref={colorMenuRef}
+                      initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, x: -10 }}
+                      className="absolute left-full ml-3 -top-3 z-40 glass border border-white/10 rounded-xl p-2 grid grid-cols-5 gap-2 w-[160px]"
+                    >
+                      {COLORS.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => {
+                            onUpdate({ color });
+                            setShowColorPicker(false);
+                          }}
+                          className={cn(
+                            "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
+                            interval.color === color
+                              ? "border-white"
+                              : "border-transparent",
+                          )}
+                          style={{ backgroundColor: color }}
+                          aria-label={`Select color ${color}`}
+                        />
+                      ))}
+                    </motion.div>
                   )}
                 </AnimatePresence>
               </div>
