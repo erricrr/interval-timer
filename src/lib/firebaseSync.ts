@@ -113,6 +113,40 @@ export async function saveNewWorkout(uid: string, data: WorkoutData): Promise<st
   return newId;
 }
 
+export async function saveOrReplaceWorkout(
+  uid: string,
+  data: WorkoutData,
+  existingWorkouts: SavedWorkout[]
+): Promise<{ id: string; isNew: boolean }> {
+  const titleToSave = data.workoutTitle?.trim().toLowerCase() || "tempotread session";
+
+  // Check if a workout with the same title (case-insensitive) exists
+  const existingWorkout = existingWorkouts.find(
+    (w) => w.title.trim().toLowerCase() === titleToSave
+  );
+
+  if (existingWorkout) {
+    // Replace existing workout - keep same ID, update intervals
+    const libraryWorkout: SavedWorkout = {
+      id: existingWorkout.id,
+      title: data.workoutTitle?.trim() || "TempoTread Session",
+      intervals: data.intervals.map(cleanInterval),
+    };
+    await setDoc(doc(db, "users", uid, "savedWorkouts", existingWorkout.id), libraryWorkout);
+    return { id: existingWorkout.id, isNew: false };
+  } else {
+    // Create new workout
+    const newId = crypto.randomUUID();
+    const libraryWorkout: SavedWorkout = {
+      id: newId,
+      title: data.workoutTitle?.trim() || "TempoTread Session",
+      intervals: data.intervals.map(cleanInterval),
+    };
+    await setDoc(doc(db, "users", uid, "savedWorkouts", newId), libraryWorkout);
+    return { id: newId, isNew: true };
+  }
+}
+
 export async function loadWorkout(uid: string): Promise<WorkoutData | null> {
   const snap = await getDoc(doc(db, "users", uid, "workouts", CURRENT_WORKOUT_ID));
   return snap.exists() ? (snap.data() as WorkoutData) : null;

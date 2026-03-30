@@ -50,6 +50,7 @@ import {
   saveWorkoutToLibrary,
   loadSavedWorkouts,
   deleteSavedWorkoutFromLibrary,
+  saveOrReplaceWorkout,
 } from "./lib/firebaseSync";
 import type { Settings as FirebaseSettings } from "./lib/firebaseSync";
 
@@ -1514,14 +1515,17 @@ export default function App() {
                   onClick={async () => {
                     try {
                       const titleToSave = workoutTitle?.trim() || "TempoTread Session";
-                      // Use saveNewWorkout to create a new timeline entry
-                      const newId = await saveNewWorkout(user.uid, {
+                      // Use saveOrReplaceWorkout to handle duplicates
+                      const result = await saveOrReplaceWorkout(user.uid, {
                         workoutTitle: titleToSave,
                         intervals,
+                      }, savedWorkouts);
+                      // Update local state - replace if exists, otherwise add
+                      const newWorkout = { id: result.id, title: titleToSave, intervals };
+                      setSavedWorkouts(prev => {
+                        const filtered = prev.filter(w => w.id !== result.id);
+                        return [newWorkout, ...filtered];
                       });
-                      // Update local state so it appears in Settings panel
-                      const newWorkout = { id: newId, title: titleToSave, intervals };
-                      setSavedWorkouts(prev => [newWorkout, ...prev]);
                       setTimelineSaved(true);
                       setTimeout(() => setTimelineSaved(false), 2000);
                     } catch (err) {
@@ -2004,19 +2008,22 @@ export default function App() {
                       onClick={async () => {
                         try {
                           const titleToSave = workoutTitle?.trim() || "TempoTread Session";
-                          // Use saveNewWorkout to create a new unique timeline entry
-                          const newId = await saveNewWorkout(user.uid, {
+                          // Use saveOrReplaceWorkout to handle duplicates
+                          const result = await saveOrReplaceWorkout(user.uid, {
                             workoutTitle: titleToSave,
                             intervals,
+                          }, savedWorkouts);
+                          // Update local state - replace if exists, otherwise add
+                          const newWorkout = { id: result.id, title: titleToSave, intervals };
+                          setSavedWorkouts(prev => {
+                            const filtered = prev.filter(w => w.id !== result.id);
+                            return [newWorkout, ...filtered];
                           });
-                          // Update local state so it appears in Saved Timelines
-                          const newWorkout = { id: newId, title: titleToSave, intervals };
-                          setSavedWorkouts(prev => [newWorkout, ...prev]);
                           // Show brief success feedback
                           const btn = document.activeElement as HTMLButtonElement;
                           if (btn) {
                             const originalText = btn.innerHTML;
-                            btn.innerHTML = `<span class="font-bold">Saved!</span>`;
+                            btn.innerHTML = `<span class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>Saved!</span>`;
                             setTimeout(() => {
                               btn.innerHTML = originalText;
                             }, 1500);
@@ -2053,13 +2060,15 @@ export default function App() {
                               </p>
                               <p className="text-[10px] font-mono text-white/30 uppercase tracking-wider">
                                 {workout.intervals.length} Intervals •{" "}
-                                {Math.floor(
-                                  workout.intervals.reduce(
+                                {(() => {
+                                  const totalSeconds = workout.intervals.reduce(
                                     (acc, i) => acc + i.duration,
                                     0,
-                                  ) / 60,
-                                )}
-                                m
+                                  );
+                                  const mins = Math.floor(totalSeconds / 60);
+                                  const secs = totalSeconds % 60;
+                                  return `${mins}m ${secs.toString().padStart(2, "0")}s`;
+                                })()}
                               </p>
                             </div>
                             <button
@@ -2264,17 +2273,17 @@ export default function App() {
                         <div className="pt-4 border-t border-white/10">
                           <button
                             onClick={async () => {
-                              // Save workout data (title + intervals) - same as timeline SAVE
+                              // Save workout data using saveOrReplaceWorkout
                               const titleToSave = workoutTitle?.trim() || "TempoTread Session";
-                              await saveWorkout(user.uid, {
+                              const result = await saveOrReplaceWorkout(user.uid, {
                                 workoutTitle: titleToSave,
                                 intervals,
-                              });
-                              // Update local state so it appears in Saved Timelines
-                              const currentWorkout = { id: "current", title: titleToSave, intervals };
+                              }, savedWorkouts);
+                              // Update local state - replace if exists, otherwise add
+                              const newWorkout = { id: result.id, title: titleToSave, intervals };
                               setSavedWorkouts(prev => {
-                                const filtered = prev.filter(w => w.id !== "current");
-                                return [currentWorkout, ...filtered];
+                                const filtered = prev.filter(w => w.id !== result.id);
+                                return [newWorkout, ...filtered];
                               });
                               // Save alarm settings separately
                               await saveSettings(user.uid, {
