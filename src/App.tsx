@@ -1958,7 +1958,7 @@ export default function App() {
                           alert("Save failed: " + (err instanceof Error ? err.message : "Unknown error"));
                         }
                       }}
-                      className="w-full py-4 glass rounded-2xl flex items-center justify-center gap-3 text-accent hover:bg-accent/10 transition-all border border-accent/20"
+                      className="w-full py-4 bg-accent text-bg font-black rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-accent/20"
                     >
                       <Save size={20} />
                       <span className="font-bold">Save "{workoutTitle}"</span>
@@ -2219,7 +2219,7 @@ export default function App() {
                               setSettingsSaved(true);
                               setTimeout(() => setSettingsSaved(false), 2000);
                             }}
-                            className="w-full py-3 bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-accent hover:bg-accent/20 transition-colors"
+                            className="w-full py-3 bg-accent text-bg font-bold rounded-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-accent/20"
                           >
                             <Save size={16} />
                             {settingsSaved ? "Saved!" : "Save"}
@@ -2244,15 +2244,6 @@ export default function App() {
                       </div>
                     </div>
                   </section>
-                </div>
-
-                <div className="mt-6">
-                  <button
-                    onClick={() => setShowSettings(false)}
-                    className="w-full py-4 bg-accent text-bg font-black rounded-2xl uppercase tracking-[0.2em] hover:scale-[1.02] transition-transform"
-                  >
-                    SAVE & CLOSE
-                  </button>
                 </div>
               </div>
             </motion.div>
