@@ -152,8 +152,56 @@ const Button = ({
   );
 };
 
-interface IntervalCardProps {
+interface SortableIntervalCardProps {
   key?: React.Key;
+  interval: Interval;
+  colorGroups: ColorGroup[];
+  audioLibrary: { id: string; name: string }[];
+  globalHalfwayAlert: boolean;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  onUpdate: (updates: Partial<Interval>) => void;
+  onOpenPlaylist: () => void;
+  onOpenNotes: (id: string) => void;
+}
+
+const SortableIntervalCard = ({
+  interval,
+  colorGroups,
+  audioLibrary,
+  globalHalfwayAlert,
+  onDelete,
+  onDuplicate,
+  onUpdate,
+  onOpenPlaylist,
+  onOpenNotes,
+}: SortableIntervalCardProps) => {
+  const dragControls = useDragControls();
+
+  return (
+    <Reorder.Item
+      value={interval}
+      dragListener={false}
+      dragControls={dragControls}
+      className="relative"
+    >
+      <IntervalCard
+        interval={interval}
+        colorGroups={colorGroups}
+        onDelete={onDelete}
+        onDuplicate={onDuplicate}
+        onUpdate={onUpdate}
+        onOpenPlaylist={onOpenPlaylist}
+        onOpenNotes={onOpenNotes}
+        audioLibrary={audioLibrary}
+        globalHalfwayAlert={globalHalfwayAlert}
+        dragControls={dragControls}
+      />
+    </Reorder.Item>
+  );
+};
+
+interface IntervalCardProps {
   interval: Interval;
   colorGroups: ColorGroup[];
   onDelete: () => void;
@@ -163,6 +211,7 @@ interface IntervalCardProps {
   onOpenNotes: (id: string) => void;
   audioLibrary: { id: string; name: string }[];
   globalHalfwayAlert: boolean;
+  dragControls?: ReturnType<typeof useDragControls>;
 }
 
 const IntervalCard = ({
@@ -175,8 +224,8 @@ const IntervalCard = ({
   onOpenNotes,
   audioLibrary,
   globalHalfwayAlert,
+  dragControls,
 }: IntervalCardProps) => {
-  const dragControls = useDragControls();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const x = useMotionValue(0);
@@ -1652,26 +1701,19 @@ export default function App() {
               onReorder={setIntervals}
               className="flex-1 overflow-y-auto pr-2 space-y-2 pb-4 pt-2"
             >
-              {intervals.map((interval) => (
-                <Reorder.Item
+              {intervals.map((interval, index) => (
+                <SortableIntervalCard
                   key={interval.id}
-                  value={interval}
-                  className="relative"
-                >
-                  <IntervalCard
-                    interval={interval}
-                    colorGroups={colorGroups}
-                    onDelete={() => deleteInterval(interval.id)}
-                    onDuplicate={() =>
-                      duplicateInterval(intervals.indexOf(interval))
-                    }
-                    onUpdate={(updates) => updateInterval(interval.id, updates)}
-                    onOpenPlaylist={() => setEditingIntervalId(interval.id)}
-                    onOpenNotes={(id) => setViewingNotesId(id)}
-                    audioLibrary={audioLibrary}
-                    globalHalfwayAlert={halfwaySoundEnabled}
-                  />
-                </Reorder.Item>
+                  interval={interval}
+                  colorGroups={colorGroups}
+                  onDelete={() => deleteInterval(interval.id)}
+                  onDuplicate={() => duplicateInterval(index)}
+                  onUpdate={(updates) => updateInterval(interval.id, updates)}
+                  onOpenPlaylist={() => setEditingIntervalId(interval.id)}
+                  onOpenNotes={(id) => setViewingNotesId(id)}
+                  audioLibrary={audioLibrary}
+                  globalHalfwayAlert={halfwaySoundEnabled}
+                />
               ))}
             </Reorder.Group>
           </div>
