@@ -74,7 +74,18 @@ export async function deleteSavedWorkoutFromLibrary(uid: string, workoutId: stri
   await deleteDoc(doc(db, "users", uid, "savedWorkouts", workoutId));
 }
 
-// ─── Unified Workout Save ───────────────────────────────────────────────────
+// Helper to clean intervals (DRY)
+function cleanInterval(interval: Interval) {
+  return {
+    id: interval.id,
+    name: interval.name || "",
+    duration: interval.duration || 0,
+    color: interval.color || "#F27D26",
+    ...(interval.notes !== undefined && { notes: interval.notes }),
+    ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
+    ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
+  };
+}
 
 const CURRENT_WORKOUT_ID = "current";
 
@@ -84,50 +95,21 @@ export interface WorkoutData {
 }
 
 export async function saveWorkout(uid: string, data: WorkoutData): Promise<void> {
-  // Clean data before saving (Firebase doesn't accept undefined)
-  const cleanIntervals = data.intervals.map(interval => ({
-    id: interval.id,
-    name: interval.name || "",
-    duration: interval.duration || 0,
-    color: interval.color || "#F27D26",
-    ...(interval.notes !== undefined && { notes: interval.notes }),
-    ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
-    ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
-  }));
-
   const cleanData: WorkoutData = {
     workoutTitle: data.workoutTitle?.trim() || "TempoTread Session",
-    intervals: cleanIntervals,
+    intervals: data.intervals.map(cleanInterval),
   };
-
-  // Save to current workout (for quick restore on login)
   await setDoc(doc(db, "users", uid, "workouts", CURRENT_WORKOUT_ID), cleanData);
 }
 
 export async function saveNewWorkout(uid: string, data: WorkoutData): Promise<string> {
-  // Generate unique ID for new workout
   const newId = crypto.randomUUID();
-
-  // Clean data before saving (Firebase doesn't accept undefined)
-  const cleanIntervals = data.intervals.map(interval => ({
-    id: interval.id,
-    name: interval.name || "",
-    duration: interval.duration || 0,
-    color: interval.color || "#F27D26",
-    ...(interval.notes !== undefined && { notes: interval.notes }),
-    ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
-    ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
-  }));
-
   const libraryWorkout: SavedWorkout = {
     id: newId,
     title: data.workoutTitle?.trim() || "TempoTread Session",
-    intervals: cleanIntervals,
+    intervals: data.intervals.map(cleanInterval),
   };
-
-  // Save to library with unique ID
   await setDoc(doc(db, "users", uid, "savedWorkouts", newId), libraryWorkout);
-
   return newId;
 }
 
@@ -169,17 +151,5 @@ export async function deleteAudioTrack(uid: string, id: string, storagePath: str
 
 export async function loadAudioLibrary(uid: string): Promise<AudioLibraryEntry[]> {
   const snap = await getDocs(collection(db, "users", uid, "audioLibrary"));
-  const entries = snap.docs.map((d) => d.data() as AudioLibraryEntry);
-
-  return await Promise.all(
-    entries.map(async (entry) => {
-      try {
-        const freshURL = await getDownloadURL(ref(storage, entry.storagePath));
-        return { ...entry, downloadURL: freshURL };
-      } catch (e) {
-        console.warn(`Could not load audio track "${entry.name}":`, e);
-        return null;
-      }
-    })
-  ).then((results) => results.filter(Boolean) as AudioLibraryEntry[]);
+  return snap.docs.map((d) => d.data() as AudioLibraryEntry);
 }

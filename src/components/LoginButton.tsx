@@ -45,6 +45,7 @@ export function LoginButton({ className }: LoginButtonProps) {
     try {
       await signOut(auth);
       console.log("User signed out");
+      window.location.reload();
     } catch (error) {
       console.error("Logout error:", error);
     }

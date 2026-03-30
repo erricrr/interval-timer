@@ -239,7 +239,7 @@ const IntervalCard = ({
             className="w-[55px] bg-red-500/20 hover:bg-red-500/30 flex flex-col items-center justify-center gap-1 transition-colors border-l border-white/5 pointer-events-auto"
             aria-label="Remove interval"
           >
-            <Trash2 size={20} className="text-red-400" />
+            <MinusCircle size={20} className="text-red-400" />
           </button>
         </div>
 
@@ -309,7 +309,7 @@ const IntervalCard = ({
                         }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left"
                       >
-                        <Trash2 size={14} />
+                        <MinusCircle size={14} />
                         Remove
                       </button>
                     </motion.div>
@@ -633,7 +633,7 @@ const PlaylistDrawer = ({
                         className="p-1.5 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
                         aria-label="Remove track"
                       >
-                        <X size={14} />
+                        <MinusCircle size={14} />
                       </button>
                     </Reorder.Item>
                   );
@@ -725,7 +725,7 @@ const PlaylistDrawer = ({
                       className="p-3 rounded-xl text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                       title="Remove from library"
                     >
-                      <Trash2 size={16} />
+                      <MinusCircle size={16} />
                     </button>
                   </div>
                 ))
@@ -786,6 +786,8 @@ export default function App() {
 
   // Firebase auth state
   const [user, setUser] = useState(auth.currentUser);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(false);
   const [audioStoragePaths, setAudioStoragePaths] = useState<Record<string, string>>({});
 
   // Alarm settings state
@@ -812,60 +814,67 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
+      setIsAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Load-on-login: fetch user data from Firebase
+  // Load-on-login: fetch user data from Firebase in parallel
   useEffect(() => {
     if (!user) return;
 
     const loadUserData = async () => {
-      // Load workout (title + intervals together)
-      const workoutData = await loadWorkout(user.uid);
-      if (workoutData) {
-        setWorkoutTitle(workoutData.workoutTitle?.trim() || "TempoTread Session");
-        setIntervals(workoutData.intervals || []);
-      }
+      setIsDataLoading(true);
+      try {
+        // Load critical data in parallel
+        const [workoutData, settings, workouts] = await Promise.all([
+          loadWorkout(user.uid),
+          loadSettings(user.uid),
+          loadSavedWorkouts(user.uid).catch(() => []),
+        ]);
 
-      // Load settings (alarm only)
-      const settings = await loadSettings(user.uid);
-      if (settings) {
-        setAlarmVolume(settings.alarmVolume);
-        setAlarmPreset(settings.alarmPreset);
-        setCustomAlarmName(settings.customAlarmName);
-        setHalfwaySoundEnabled(settings.halfwaySoundEnabled);
-      }
+        if (workoutData) {
+          setWorkoutTitle(workoutData.workoutTitle?.trim() || "TempoTread Session");
+          setIntervals(workoutData.intervals || []);
+        }
 
-      // Load audio library
+        if (settings) {
+          setAlarmVolume(settings.alarmVolume);
+          setAlarmPreset(settings.alarmPreset);
+          setCustomAlarmName(settings.customAlarmName);
+          setHalfwaySoundEnabled(settings.halfwaySoundEnabled);
+        }
+
+        setSavedWorkouts(workouts);
+      } finally {
+        setIsDataLoading(false);
+      }
+    };
+
+    // Load audio library in background (non-blocking)
+    const loadAudio = async () => {
       try {
         const audioEntries = await loadAudioLibrary(user.uid);
         const paths: Record<string, string> = {};
-        for (const entry of audioEntries) {
-          try {
-            await audioEngine.addAudioFromURL(entry.id, entry.name, entry.downloadURL);
-            paths[entry.id] = entry.storagePath;
-          } catch (audioErr) {
-            console.error(`Failed to load audio ${entry.name}:`, audioErr);
-            // Skip this track but continue loading others
-          }
-        }
+        await Promise.all(
+          audioEntries.map(async (entry) => {
+            try {
+              await audioEngine.addAudioFromURL(entry.id, entry.name, entry.downloadURL);
+              paths[entry.id] = entry.storagePath;
+            } catch (audioErr) {
+              console.error(`Failed to load audio ${entry.name}:`, audioErr);
+            }
+          })
+        );
         setAudioStoragePaths(paths);
         setAudioLibrary(audioEngine.getAudioLibrary());
       } catch (err) {
         console.error("Failed to load audio library:", err);
       }
-
-      // Load saved workouts library from Firestore
-      try {
-        const workouts = await loadSavedWorkouts(user.uid);
-        setSavedWorkouts(workouts);
-      } catch (err) {
-        console.error("Failed to load saved workouts:", err);
-      }
     };
 
     loadUserData();
+    loadAudio(); // Non-blocking
   }, [user]);
 
   useEffect(() => {
@@ -1324,9 +1333,40 @@ export default function App() {
 
   // --- Render ---
 
+  const isLoading = isAuthLoading || (user && isDataLoading);
+
   return (
-    <div className="min-h-screen bg-bg text-white font-sans antialiased selection:bg-accent/30 overflow-x-hidden">
-      <div className="max-w-7xl mx-auto flex flex-col p-4 md:p-8 lg:p-12 min-h-screen">
+    <AnimatePresence mode="wait">
+      {isLoading ? (
+        <motion.div
+          key="loading"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="min-h-screen bg-bg text-white font-sans antialiased flex items-center justify-center"
+        >
+          <div className="flex flex-col items-center gap-4">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              className="w-10 h-10 border-3 border-white/10 border-t-accent rounded-full"
+              style={{ borderWidth: "3px" }}
+            />
+            <p className="text-xs font-mono text-white/40 uppercase tracking-widest">
+              Loading...
+            </p>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div
+          key="app"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="min-h-screen bg-bg text-white font-sans antialiased selection:bg-accent/30 overflow-x-hidden"
+        >
+          <div className="max-w-7xl mx-auto flex flex-col p-4 md:p-8 lg:p-12 min-h-screen">
         <header className="flex flex-col gap-4 mb-4 lg:mb-8">
           {/* Top Row: App Title + Actions */}
           <div className="flex items-center justify-between">
@@ -2270,6 +2310,8 @@ export default function App() {
           )}
         </AnimatePresence>
       </div>
-    </div>
-  );
+    </motion.div>
+  )}
+</AnimatePresence>
+);
 }
