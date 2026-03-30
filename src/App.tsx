@@ -41,6 +41,7 @@ import {
   saveSettings,
   loadSettings,
   saveWorkout,
+  saveNewWorkout,
   loadWorkout,
   uploadAudioTrack,
   deleteAudioTrack,
@@ -110,7 +111,7 @@ const Button = ({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap cursor-pointer",
+        "inline-flex items-center justify-center gap-2 rounded-lg transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap",
         variants[variant],
         sizes[size],
         className,
@@ -820,20 +821,20 @@ export default function App() {
     if (!user) return;
 
     const loadUserData = async () => {
-      // Load settings
+      // Load workout (title + intervals together)
+      const workoutData = await loadWorkout(user.uid);
+      if (workoutData) {
+        setWorkoutTitle(workoutData.workoutTitle?.trim() || "TempoTread Session");
+        setIntervals(workoutData.intervals || []);
+      }
+
+      // Load settings (alarm only)
       const settings = await loadSettings(user.uid);
       if (settings) {
-        setWorkoutTitle(settings.workoutTitle);
         setAlarmVolume(settings.alarmVolume);
         setAlarmPreset(settings.alarmPreset);
         setCustomAlarmName(settings.customAlarmName);
         setHalfwaySoundEnabled(settings.halfwaySoundEnabled);
-      }
-
-      // Load workout
-      const workoutIntervals = await loadWorkout(user.uid);
-      if (workoutIntervals) {
-        setIntervals(workoutIntervals);
       }
 
       // Load audio library
@@ -1381,9 +1382,22 @@ export default function App() {
               {user && (
                 <button
                   onClick={async () => {
-                    await saveWorkout(user.uid, intervals);
-                    setTimelineSaved(true);
-                    setTimeout(() => setTimelineSaved(false), 2000);
+                    try {
+                      const titleToSave = workoutTitle?.trim() || "TempoTread Session";
+                      // Use saveNewWorkout to create a new timeline entry
+                      const newId = await saveNewWorkout(user.uid, {
+                        workoutTitle: titleToSave,
+                        intervals,
+                      });
+                      // Update local state so it appears in Settings panel
+                      const newWorkout = { id: newId, title: titleToSave, intervals };
+                      setSavedWorkouts(prev => [newWorkout, ...prev]);
+                      setTimelineSaved(true);
+                      setTimeout(() => setTimelineSaved(false), 2000);
+                    } catch (err) {
+                      console.error("Timeline SAVE failed:", err);
+                      alert("Save failed: " + (err instanceof Error ? err.message : "Unknown error"));
+                    }
                   }}
                   className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-accent hover:bg-accent/10 transition-all border border-accent/20 text-[10px] font-bold uppercase tracking-wider"
                 >
@@ -1847,7 +1861,31 @@ export default function App() {
                       <Save size={14} /> Save Current Timeline
                     </h3>
                     <button
-                      onClick={saveCurrentWorkout}
+                      onClick={async () => {
+                        try {
+                          const titleToSave = workoutTitle?.trim() || "TempoTread Session";
+                          // Use saveNewWorkout to create a new unique timeline entry
+                          const newId = await saveNewWorkout(user.uid, {
+                            workoutTitle: titleToSave,
+                            intervals,
+                          });
+                          // Update local state so it appears in Saved Timelines
+                          const newWorkout = { id: newId, title: titleToSave, intervals };
+                          setSavedWorkouts(prev => [newWorkout, ...prev]);
+                          // Show brief success feedback
+                          const btn = document.activeElement as HTMLButtonElement;
+                          if (btn) {
+                            const originalText = btn.innerHTML;
+                            btn.innerHTML = `<span class="font-bold">Saved!</span>`;
+                            setTimeout(() => {
+                              btn.innerHTML = originalText;
+                            }, 1500);
+                          }
+                        } catch (err) {
+                          console.error("Save failed:", err);
+                          alert("Save failed: " + (err instanceof Error ? err.message : "Unknown error"));
+                        }
+                      }}
                       className="w-full py-4 glass rounded-2xl flex items-center justify-center gap-3 text-accent hover:bg-accent/10 transition-all border border-accent/20"
                     >
                       <Save size={20} />
@@ -2086,8 +2124,20 @@ export default function App() {
                         <div className="pt-4 border-t border-white/10">
                           <button
                             onClick={async () => {
+                              // Save workout data (title + intervals) - same as timeline SAVE
+                              const titleToSave = workoutTitle?.trim() || "TempoTread Session";
+                              await saveWorkout(user.uid, {
+                                workoutTitle: titleToSave,
+                                intervals,
+                              });
+                              // Update local state so it appears in Saved Timelines
+                              const currentWorkout = { id: "current", title: titleToSave, intervals };
+                              setSavedWorkouts(prev => {
+                                const filtered = prev.filter(w => w.id !== "current");
+                                return [currentWorkout, ...filtered];
+                              });
+                              // Save alarm settings separately
                               await saveSettings(user.uid, {
-                                workoutTitle,
                                 alarmVolume,
                                 alarmPreset,
                                 customAlarmName,
@@ -2100,7 +2150,7 @@ export default function App() {
                             className="w-full py-3 bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-accent hover:bg-accent/20 transition-colors"
                           >
                             <Save size={16} />
-                            {settingsSaved ? "Saved!" : "Save Settings"}
+                            {settingsSaved ? "Saved!" : "Save"}
                           </button>
                         </div>
                       )}

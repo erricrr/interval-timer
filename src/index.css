@@ -17,6 +17,9 @@
   html {
     overflow: hidden;
   }
+  button {
+    cursor: pointer;
+  }
 }
 
 .glass {
