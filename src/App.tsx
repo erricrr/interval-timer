@@ -509,28 +509,34 @@ const IntervalCard = ({
 
             {/* Bottom Section: Track Count & Actions */}
             <div className="flex items-center gap-3 pt-2 border-t border-white/5">
-              <div
-                className="flex items-center gap-2 text-[10px] font-mono"
-                style={{
-                  color:
-                    (interval.playlist || []).length > 0
-                      ? interval.color
-                      : "rgba(255,255,255,0.4)",
-                }}
-              >
-                <Music size={12} />
-                <span>{(interval.playlist || []).length} Tracks</span>
-              </div>
-
-              <Button
-                variant="secondary"
-                size="xs"
+              {/* Unified Tracks Button - combines icon, count, and add action */}
+              <button
                 onClick={onOpenPlaylist}
-                className="h-5 px-2 text-[9px]"
+                className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all group"
               >
-                <Plus size={10} />
-                Add
-              </Button>
+                <Music
+                  size={12}
+                  className={cn(
+                    "transition-colors",
+                    (interval.playlist || []).length > 0
+                      ? "text-[var(--interval-color)]"
+                      : "text-white/40 group-hover:text-white/60"
+                  )}
+                  style={{ color: (interval.playlist || []).length > 0 ? interval.color : undefined }}
+                />
+                <span
+                  className={cn(
+                    "text-[10px] font-mono font-medium",
+                    (interval.playlist || []).length > 0 ? "text-white/80" : "text-white/40"
+                  )}
+                >
+                  {(interval.playlist || []).length} Tracks
+                </span>
+                <Plus
+                  size={10}
+                  className="text-white/30 group-hover:text-white/60 transition-colors"
+                />
+              </button>
 
               <div className="flex-1" />
 
