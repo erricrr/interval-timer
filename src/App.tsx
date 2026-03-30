@@ -572,6 +572,7 @@ const PlaylistDrawer = ({
   isUploading = false,
 }: PlaylistDrawerProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [audioToDelete, setAudioToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const formatAudioName = (name: string) => {
     // Remove file extension
@@ -753,7 +754,7 @@ const PlaylistDrawer = ({
                     </button>
                     {/* Separate delete button */}
                     <button
-                      onClick={() => onRemoveAudio(audio.id)}
+                      onClick={() => setAudioToDelete({ id: audio.id, name: audio.name })}
                       className="p-3 rounded-xl text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                       title="Remove from library"
                     >
@@ -778,6 +779,65 @@ const PlaylistDrawer = ({
             Done
           </Button>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {audioToDelete && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[102]"
+                onClick={() => setAudioToDelete(null)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="fixed inset-0 z-[103] flex items-center justify-center pointer-events-none p-4"
+              >
+                <div className="glass border border-white/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
+                  <div className="flex items-start gap-3 mb-4">
+
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-1">
+                        Delete Audio Track?
+                      </h3>
+                      <p className="text-sm text-white/60">
+                        Are you sure you want to delete{" "}
+                        <span className="text-white font-medium">
+                          {formatAudioName(audioToDelete.name)}
+                        </span>
+                        ? This will also remove it from any intervals using this track.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="secondary"
+                      className="flex-1 py-3"
+                      onClick={() => setAudioToDelete(null)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="danger"
+                      className="flex-1 py-3"
+                      onClick={() => {
+                        onRemoveAudio(audioToDelete.id);
+                        setAudioToDelete(null);
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </motion.div>
     </>
   );
