@@ -1067,23 +1067,22 @@ export default function App() {
     if (currentIndex > 0) {
       const prevIndex = currentIndex - 1;
       const prev = intervals[prevIndex];
-      const prevGroup = getGroupForInterval(colorGroups, prevIndex);
-      const currentGroup = getGroupForInterval(colorGroups, currentIndex);
-      const isSameGroup =
-        prevGroup &&
-        currentGroup &&
-        prevGroup.startIndex === currentGroup.startIndex;
+      const current = intervals[currentIndex];
+      const isSameColor = prev.color === current.color;
 
       setCurrentIndex(prevIndex);
       setTimeLeft(prev.duration);
       audioEngine.stopAll();
       audioEngine.playStart();
-      // Restart audio for the previous interval's group
-      if (prevGroup && prevGroup.mergedPlaylist.length > 0) {
-        audioEngine.playPlaylist(
-          prevGroup.mergedPlaylist,
-          prevGroup.totalDuration,
-        );
+      // Restart audio for the previous interval's color group
+      if (!isSameColor) {
+        const prevGroup = getGroupForInterval(colorGroups, prev.color);
+        if (prevGroup && prevGroup.mergedPlaylist.length > 0) {
+          audioEngine.playPlaylist(
+            prevGroup.mergedPlaylist,
+            prevGroup.totalDuration,
+          );
+        }
       }
     }
   };
@@ -1092,23 +1091,22 @@ export default function App() {
     if (currentIndex < intervals.length - 1) {
       const nextIndex = currentIndex + 1;
       const next = intervals[nextIndex];
-      const nextGroup = getGroupForInterval(colorGroups, nextIndex);
-      const currentGroup = getGroupForInterval(colorGroups, currentIndex);
-      const isSameGroup =
-        nextGroup &&
-        currentGroup &&
-        nextGroup.startIndex === currentGroup.startIndex;
+      const current = intervals[currentIndex];
+      const isSameColor = next.color === current.color;
 
       setCurrentIndex(nextIndex);
       setTimeLeft(next.duration);
       audioEngine.stopAll();
       audioEngine.playStart();
-      // Restart audio for the next interval's group
-      if (nextGroup && nextGroup.mergedPlaylist.length > 0) {
-        audioEngine.playPlaylist(
-          nextGroup.mergedPlaylist,
-          nextGroup.totalDuration,
-        );
+      // Restart audio for the next interval's color group
+      if (!isSameColor) {
+        const nextGroup = getGroupForInterval(colorGroups, next.color);
+        if (nextGroup && nextGroup.mergedPlaylist.length > 0) {
+          audioEngine.playPlaylist(
+            nextGroup.mergedPlaylist,
+            nextGroup.totalDuration,
+          );
+        }
       }
     } else {
       audioEngine.playWorkoutComplete();
@@ -1269,19 +1267,12 @@ export default function App() {
 
                 const nextIndex = currentIndex + 1;
                 const nextInterval = intervals[nextIndex];
-                const currentGroup = getGroupForInterval(
-                  colorGroups,
-                  currentIndex,
-                );
-                const nextGroup = getGroupForInterval(colorGroups, nextIndex);
-                const isSameGroup =
-                  currentGroup &&
-                  nextGroup &&
-                  currentGroup.startIndex === nextGroup.startIndex;
+                const currentInterval = intervals[currentIndex];
+                const isSameColor = nextInterval.color === currentInterval.color;
 
                 setCurrentIndex(nextIndex);
 
-                if (isSameGroup) {
+                if (isSameColor) {
                   // Same color group - continue playing without stopping
                   setTimeout(() => {
                     audioEngine.playStart();
@@ -1291,6 +1282,7 @@ export default function App() {
                   audioEngine.stopAll();
                   setTimeout(() => {
                     audioEngine.playStart();
+                    const nextGroup = getGroupForInterval(colorGroups, nextInterval.color);
                     if (nextGroup && nextGroup.mergedPlaylist.length > 0) {
                       audioEngine.playPlaylist(
                         nextGroup.mergedPlaylist,

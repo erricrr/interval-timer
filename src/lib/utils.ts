@@ -23,9 +23,8 @@ export interface Interval {
 export type WorkoutState = 'idle' | 'countdown' | 'running' | 'paused' | 'finished';
 
 export interface ColorGroup {
-  startIndex: number;
-  endIndex: number;
   color: string;
+  indices: number[]; // All interval indices with this color
   totalDuration: number;
   mergedPlaylist: PlaylistTrack[];
 }
@@ -33,47 +32,39 @@ export interface ColorGroup {
 export function buildColorGroups(intervals: Interval[]): ColorGroup[] {
   if (intervals.length === 0) return [];
 
-  const groups: ColorGroup[] = [];
-  let currentGroup: ColorGroup = {
-    startIndex: 0,
-    endIndex: 0,
-    color: intervals[0].color,
-    totalDuration: intervals[0].duration,
-    mergedPlaylist: [...(intervals[0].playlist || [])],
-  };
+  // Aggregate by color across all intervals
+  const colorMap = new Map<string, ColorGroup>();
 
-  for (let i = 1; i < intervals.length; i++) {
+  for (let i = 0; i < intervals.length; i++) {
     const interval = intervals[i];
-    if (interval.color === currentGroup.color) {
-      // Same color - extend current group
-      currentGroup.endIndex = i;
-      currentGroup.totalDuration += interval.duration;
+    const existing = colorMap.get(interval.color);
+
+    if (existing) {
+      existing.indices.push(i);
+      existing.totalDuration += interval.duration;
       // Merge playlists, avoiding duplicate audioIds
-      const existingIds = new Set(currentGroup.mergedPlaylist.map(t => t.audioId));
+      const existingIds = new Set(existing.mergedPlaylist.map(t => t.audioId));
       for (const track of interval.playlist || []) {
         if (!existingIds.has(track.audioId)) {
-          currentGroup.mergedPlaylist.push(track);
+          existing.mergedPlaylist.push(track);
+          existingIds.add(track.audioId);
         }
       }
     } else {
-      // Different color - finalize current group and start new one
-      groups.push(currentGroup);
-      currentGroup = {
-        startIndex: i,
-        endIndex: i,
+      colorMap.set(interval.color, {
         color: interval.color,
+        indices: [i],
         totalDuration: interval.duration,
         mergedPlaylist: [...(interval.playlist || [])],
-      };
+      });
     }
   }
-  // Push the last group
-  groups.push(currentGroup);
-  return groups;
+
+  return Array.from(colorMap.values());
 }
 
-export function getGroupForInterval(groups: ColorGroup[], intervalIndex: number): ColorGroup | undefined {
-  return groups.find(g => g.startIndex <= intervalIndex && g.endIndex >= intervalIndex);
+export function getGroupForInterval(groups: ColorGroup[], intervalColor: string): ColorGroup | undefined {
+  return groups.find(g => g.color === intervalColor);
 }
 
 export const COLORS = [
