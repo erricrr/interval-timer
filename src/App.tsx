@@ -1733,7 +1733,7 @@ export default function App() {
               axis="y"
               values={intervals}
               onReorder={setIntervals}
-              className="flex-1 overflow-y-auto pr-2 space-y-2 pb-4 pt-2"
+              className="flex-1 overflow-y-auto pr-2 space-y-2 pb-32 pt-2"
             >
               {intervals.map((interval, index) => (
                 <SortableIntervalCard
@@ -1755,7 +1755,7 @@ export default function App() {
           {/* Add Interval Button - Fixed above Let's Go */}
           <button
             onClick={addInterval}
-            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 py-1.5 px-10 bg-bg rounded-full flex items-center justify-center gap-2 border border-text-subtle/10 cursor-pointer"
+            className="fixed bottom-28 left-1/2 -translate-x-1/2 z-40 py-1.5 px-10 bg-bg rounded-full flex items-center justify-center gap-2 border border-text-subtle/40 cursor-pointer"
           >
             <Plus
               size={14}
