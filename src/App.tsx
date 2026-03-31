@@ -1755,7 +1755,7 @@ export default function App() {
           {/* Add Interval Button - Fixed above Let's Go */}
           <button
             onClick={addInterval}
-            className="fixed bottom-28 left-1/2 -translate-x-1/2 z-40 py-1.5 px-10 bg-bg rounded-full flex items-center justify-center gap-2 border border-text-subtle/40 cursor-pointer"
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 py-1.5 px-10 bg-bg rounded-full flex items-center justify-center gap-2 border border-text-subtle/40 cursor-pointer"
           >
             <Plus
               size={14}
