@@ -1733,7 +1733,7 @@ export default function App() {
               axis="y"
               values={intervals}
               onReorder={setIntervals}
-              className="flex-1 overflow-y-auto pr-2 space-y-2 pb-32 pt-2"
+              className="flex-1 overflow-y-auto pr-2 space-y-2 pb-44 pt-2"
             >
               {intervals.map((interval, index) => (
                 <SortableIntervalCard
