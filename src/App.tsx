@@ -919,7 +919,7 @@ export default function App() {
   const [workoutTitle, setWorkoutTitle] = useState("TempoTread Session");
   const [intervals, setIntervals] = useState<Interval[]>([
     { id: "1", name: "Warm Up", duration: 10, notes: "", color: COLORS[1] },
-    { id: "2", name: "Sprint", duration: 10, notes: "", color: COLORS[3] },
+    { id: "2", name: "Run", duration: 10, notes: "", color: COLORS[3] },
     { id: "3", name: "Recovery", duration: 10, notes: "", color: COLORS[2] },
   ]);
 
