@@ -1773,7 +1773,7 @@ export default function App() {
                 variant="solid"
                 size="md"
                 onClick={startWorkout}
-                className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md rounded-2xl py-3 font-black text-base uppercase tracking-[0.2em]"
+                className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md rounded-2xl py-3 font-black text-base uppercase tracking-[0.2em]"
               >
                 <Play size={20} fill="currentColor" />
                 Let's go!
