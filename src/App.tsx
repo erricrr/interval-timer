@@ -32,6 +32,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Bell,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup, PlaylistTrack } from "./lib/utils";
 import { audioEngine } from "./lib/audio";
@@ -100,7 +102,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 const CloseButton = ({ onClose }: { onClose: () => void }) => (
   <button
     onClick={onClose}
-    className="p-3 glass rounded-full text-white/60 hover:text-white transition-colors"
+    className="p-3 glass rounded-full text-text-muted hover:text-text"
     aria-label="Close"
   >
     <X size={24} />
@@ -115,14 +117,14 @@ const Button = ({
   ...props
 }: ButtonProps) => {
   const variants = {
-    primary: "bg-white/10 text-white hover:bg-white/20 border border-white/10",
+    primary: "bg-text-subtle/20 text-text hover:bg-text-subtle/30 border border-text-subtle/20",
     secondary:
-      "bg-white/5 text-white/50 hover:text-white hover:bg-white/10 border border-white/5",
-    ghost: "text-white/40 hover:text-white/80 hover:bg-white/5",
+      "bg-text-subtle/10 text-text-muted hover:text-text hover:bg-text-subtle/20 border border-text-subtle/10",
+    ghost: "text-text-subtle hover:text-text hover:bg-text-subtle/10",
     accent:
       "bg-accent/10 text-accent hover:bg-accent/20 border border-accent/20",
     solid: "bg-accent text-bg hover:bg-accent/90 border-none",
-    white: "bg-white text-bg hover:bg-white/90 border-none",
+    white: "bg-text text-bg hover:bg-text/90 border-none",
     danger:
       "bg-rose-400/10 text-rose-400 hover:bg-rose-400/20 border border-rose-400/20",
     upload:
@@ -323,10 +325,10 @@ const IntervalCard = ({
                 transition: { type: "spring", stiffness: 500, damping: 30 },
               });
             }}
-            className="w-[55px] bg-white/10 hover:bg-white/20 flex flex-col items-center justify-center gap-1 transition-colors border-l border-white/5 pointer-events-auto"
+            className="w-[55px] bg-text-subtle/10 hover:bg-text-subtle/20 flex flex-col items-center justify-center gap-1 transition-colors border-l border-text-subtle/5 pointer-events-auto"
             aria-label="Duplicate interval"
           >
-            <Copy size={20} className="text-white/70" />
+            <Copy size={20} className="text-text-muted" />
           </button>
           <button
             onClick={() => {
@@ -336,7 +338,7 @@ const IntervalCard = ({
                 transition: { type: "spring", stiffness: 500, damping: 30 },
               });
             }}
-            className="w-[55px] bg-red-500/20 hover:bg-red-500/30 flex flex-col items-center justify-center gap-1 transition-colors border-l border-white/5 pointer-events-auto"
+            className="w-[55px] bg-red-500/20 hover:bg-red-500/30 flex flex-col items-center justify-center gap-1 transition-colors border-l border-text-subtle/5 pointer-events-auto"
             aria-label="Remove interval"
           >
             <MinusCircle size={20} className="text-red-400" />
@@ -356,7 +358,7 @@ const IntervalCard = ({
           {/* Full Height Drag Handle */}
           <div
             onPointerDown={(e) => dragControls.start(e)}
-            className="w-10 flex items-center justify-center cursor-grab active:cursor-grabbing text-white/10 hover:text-white/30 hover:bg-white/5 transition-all border-r border-white/5 shrink-0 touch-none"
+            className="w-10 flex items-center justify-center cursor-grab active:cursor-grabbing text-text-subtle hover:text-text-muted hover:bg-text-subtle/10 transition-all border-r border-text-subtle/5 shrink-0 touch-none"
           >
             <GripVertical size={20} />
           </div>
@@ -369,7 +371,7 @@ const IntervalCard = ({
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowActions(!showActions)}
-                className="w-7 h-7 sm:w-8 sm:h-8 text-white/40 hover:text-white"
+                className="w-7 h-7 sm:w-8 sm:h-8 text-text-subtle hover:text-text"
                 aria-label="More actions"
               >
                 <MoreVertical size={16} />
@@ -382,7 +384,7 @@ const IntervalCard = ({
                     initial={{ opacity: 0, scale: 0.9, x: 5 }}
                     animate={{ opacity: 1, scale: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.9, x: 5 }}
-                    className="fixed z-[70] glass border border-white/10 rounded-xl p-1 w-36 overflow-hidden"
+                    className="fixed z-[70] glass border border-text-subtle/10 rounded-xl p-1 w-36 overflow-hidden"
                     style={{
                       right: "44px",
                       top: "8px",
@@ -393,12 +395,12 @@ const IntervalCard = ({
                         onDuplicate();
                         setShowActions(false);
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors text-left"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-text-muted hover:text-text hover:bg-text-subtle/10 transition-colors text-left"
                     >
                       <Copy size={14} />
                       Duplicate
                     </button>
-                    <div className="h-px bg-white/5 mx-1" />
+                    <div className="h-px bg-text-subtle/10 mx-1" />
                     <button
                       onClick={() => {
                         onDelete();
@@ -436,7 +438,7 @@ const IntervalCard = ({
                       initial={{ opacity: 0, scale: 0.9, x: -10 }}
                       animate={{ opacity: 1, scale: 1, x: 0 }}
                       exit={{ opacity: 0, scale: 0.9, x: -10 }}
-                      className="absolute left-full ml-3 -top-3 z-40 glass border border-white/10 rounded-xl p-2 grid grid-cols-5 gap-2 w-[160px]"
+                      className="absolute left-full ml-3 -top-3 z-40 glass border border-text-subtle/10 rounded-xl p-2 grid grid-cols-5 gap-2 w-[160px]"
                     >
                       {COLORS.map((color) => (
                         <button
@@ -448,7 +450,7 @@ const IntervalCard = ({
                           className={cn(
                             "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
                             interval.color === color
-                              ? "border-white"
+                              ? "border-text"
                               : "border-transparent",
                           )}
                           style={{ backgroundColor: color }}
@@ -466,16 +468,16 @@ const IntervalCard = ({
                   value={interval.name}
                   onChange={(e) => onUpdate({ name: e.target.value })}
                   placeholder="Interval Title"
-                  className="bg-transparent border-none p-0 font-bold text-sm sm:text-base text-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full placeholder:text-white/10 truncate"
+                  className="bg-transparent border-none p-0 font-bold text-sm sm:text-base text-text/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full placeholder:text-text-subtle/30 truncate"
                 />
               </div>
 
               {/* Halfway Alert Toggle */}
               <div className="flex items-center gap-1.5 shrink-0">
-                <Bell size={12} className="text-white/40" aria-hidden="true" />
+                <Bell size={12} className="text-text-subtle" aria-hidden="true" />
                 <label
                   htmlFor={`halfway-alert-${interval.id}`}
-                  className="text-[10px] font-medium text-white/50 uppercase cursor-pointer"
+                  className="text-[10px] font-medium text-text-muted uppercase cursor-pointer"
                 >
                   50%
                 </label>
@@ -504,12 +506,12 @@ const IntervalCard = ({
                     "w-9 h-5 rounded-full transition-colors relative flex items-center shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
                     (interval.halfwayAlert ?? globalHalfwayAlert)
                       ? "bg-accent"
-                      : "bg-white/20",
+                      : "bg-text-subtle/40",
                   )}
                 >
                   <span
                     className={cn(
-                      "w-3 h-3 rounded-full bg-white transition-transform",
+                      "w-3 h-3 rounded-full bg-text transition-transform",
                       (interval.halfwayAlert ?? globalHalfwayAlert)
                         ? "translate-x-5"
                         : "translate-x-1",
@@ -535,13 +537,13 @@ const IntervalCard = ({
                       );
                       onUpdate({ duration: val * 60 + secs });
                     }}
-                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-xl sm:text-2xl font-mono font-black text-white tabular-nums selection:bg-accent/30"
+                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-xl sm:text-2xl font-mono font-black text-text tabular-nums selection:bg-accent/30"
                   />
-                  <span className="text-[8px] sm:text-[9px] font-black text-white/50 uppercase tracking-wider">
+                  <span className="text-[8px] sm:text-[9px] font-black text-text-muted uppercase tracking-wider">
                     m
                   </span>
                 </div>
-                <span className="text-lg sm:text-xl font-mono text-white/20">
+                <span className="text-lg sm:text-xl font-mono text-text-subtle">
                   :
                 </span>
                 <div className="flex items-center gap-0.5">
@@ -558,9 +560,9 @@ const IntervalCard = ({
                       if (val < 0) val = 0;
                       onUpdate({ duration: mins * 60 + val });
                     }}
-                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-xl sm:text-2xl font-mono font-black text-white tabular-nums selection:bg-accent/30"
+                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-xl sm:text-2xl font-mono font-black text-text tabular-nums selection:bg-accent/30"
                   />
-                  <span className="text-[8px] sm:text-[9px] font-black text-white/50 uppercase tracking-wider">
+                  <span className="text-[8px] sm:text-[9px] font-black text-text-muted uppercase tracking-wider">
                     s
                   </span>
                 </div>
@@ -568,10 +570,10 @@ const IntervalCard = ({
             </div>
 
             {/* Bottom Section: Track Count & Actions */}
-            <div className="flex items-center gap-3 pt-2 border-t border-white/5">
+            <div className="flex items-center gap-3 pt-2 border-t border-text-subtle/10">
               <button
                 onClick={onOpenPlaylist}
-                className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all group"
+                className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-text-subtle/5 hover:bg-text-subtle/10 border border-text-subtle/10 hover:border-text-subtle/20 transition-all group"
               >
                 <Music
                   size={12}
@@ -579,21 +581,21 @@ const IntervalCard = ({
                     "transition-colors",
                     trackCount > 0
                       ? "text-[var(--interval-color)]"
-                      : "text-white/40 group-hover:text-white/60"
+                      : "text-text-subtle group-hover:text-text-muted"
                   )}
                   style={{ color: trackCount > 0 ? interval.color : undefined }}
                 />
                 <span
                   className={cn(
                     "text-[10px] font-mono font-medium",
-                    trackCount > 0 ? "text-white/80" : "text-white/40"
+                    trackCount > 0 ? "text-text" : "text-text-subtle"
                   )}
                 >
                   {trackCount} Tracks
                 </span>
                 <Plus
                   size={10}
-                  className="text-white/30 group-hover:text-white/60 transition-colors"
+                  className="text-text-subtle group-hover:text-text-muted transition-colors"
                 />
               </button>
 
@@ -668,14 +670,14 @@ const PlaylistDrawer = ({
         exit={{ x: "100%" }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
         style={{ "--interval-color": interval.color } as React.CSSProperties}
-        className="fixed right-0 top-0 bottom-0 w-full max-w-md glass border-l border-white/10 z-[101] flex flex-col shadow-2xl"
+        className="fixed right-0 top-0 bottom-0 w-full max-w-md glass border-l border-text-subtle/10 z-[101] flex flex-col shadow-2xl"
       >
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+        <div className="p-6 border-b border-text-subtle/10 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-black uppercase tracking-widest text-white">
+            <h2 className="text-xl font-black uppercase tracking-widest text-text">
               Edit Tracks
             </h2>
-            <p className="text-[10px] font-mono text-white/40 uppercase tracking-widest mt-1">
+            <p className="text-[10px] font-mono text-text-muted uppercase tracking-widest mt-1">
               Interval:{" "}
               <span style={{ color: interval.color }}>
                 {interval.name || "Untitled"}
@@ -689,10 +691,10 @@ const PlaylistDrawer = ({
           {/* Current Playlist */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white/60">
+              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
                 Current Tracks
               </h3>
-              <span className="text-[10px] font-mono text-white/30">
+              <span className="text-[10px] font-mono text-text-subtle">
                 {mergedPlaylist.length} Total
               </span>
             </div>
@@ -704,9 +706,9 @@ const PlaylistDrawer = ({
               className="space-y-2"
             >
               {mergedPlaylist.length === 0 ? (
-                <div className="p-8 border-2 border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center text-center gap-3">
-                  <Music size={24} className="text-white/10" />
-                  <p className="text-xs text-white/20 italic">
+                <div className="p-8 border-2 border-dashed border-text-subtle/10 rounded-2xl flex flex-col items-center justify-center text-center gap-3">
+                  <Music size={24} className="text-text-subtle/30" />
+                  <p className="text-xs text-text-subtle/50 italic">
                     No songs in playlist
                   </p>
                 </div>
@@ -720,13 +722,13 @@ const PlaylistDrawer = ({
                     <Reorder.Item
                       key={track.instanceId}
                       value={track}
-                      className="glass p-3 rounded-xl flex items-center gap-3 group/item border border-white/5 hover:border-white/10 transition-colors"
+                      className="glass p-3 rounded-xl flex items-center gap-3 group/item border border-text-subtle/10 hover:border-text-subtle/20 transition-colors"
                     >
-                      <div className="text-white/10 group-hover/item:text-white/30 transition-colors cursor-grab active:cursor-grabbing">
+                      <div className="text-text-subtle group-hover/item:text-text-muted transition-colors cursor-grab active:cursor-grabbing">
                         <GripVertical size={16} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-white/80 truncate">
+                        <p className="text-xs font-bold text-text/80 truncate">
                           {formatAudioName(audio.name)}
                         </p>
                       </div>
@@ -737,7 +739,7 @@ const PlaylistDrawer = ({
                           );
                           onUpdatePlaylist(nextPlaylist);
                         }}
-                        className="p-1.5 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                        className="p-1.5 text-text-subtle hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
                         aria-label="Remove track"
                       >
                         <MinusCircle size={14} />
@@ -752,7 +754,7 @@ const PlaylistDrawer = ({
           {/* Add from Library */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white/60">
+              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
                 Library
               </h3>
               <Button
@@ -793,7 +795,7 @@ const PlaylistDrawer = ({
 
             <div className="grid grid-cols-1 gap-2">
               {audioLibrary.length === 0 ? (
-                <p className="text-[10px] text-white/20 italic text-center py-4">
+                <p className="text-[10px] text-text-subtle/50 italic text-center py-4">
                   No songs in library
                 </p>
               ) : (
@@ -812,22 +814,22 @@ const PlaylistDrawer = ({
                           },
                         ])
                       }
-                      className="flex-1 flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 transition-all text-left overflow-hidden min-w-0"
+                      className="flex-1 flex items-center gap-3 p-3 rounded-xl bg-text-subtle/5 hover:bg-text-subtle/10 border border-transparent hover:border-text-subtle/10 transition-all text-left overflow-hidden min-w-0"
                     >
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-accent/10 text-accent shrink-0">
                         <Music size={14} />
                       </div>
-                      <span className="flex-1 text-xs text-white/70 truncate min-w-0">
+                      <span className="flex-1 text-xs text-text-muted truncate min-w-0">
                         {formatAudioName(audio.name)}
                       </span>
-                      <div className="w-8 h-8 flex items-center justify-center text-white/20 hover:text-[var(--interval-color)] transition-colors shrink-0">
+                      <div className="w-8 h-8 flex items-center justify-center text-text-subtle hover:text-[var(--interval-color)] transition-colors shrink-0">
                         <Plus size={16} />
                       </div>
                     </button>
                     {/* Separate delete button */}
                     <button
                       onClick={() => setAudioToDelete({ id: audio.id, name: audio.name })}
-                      className="p-3 rounded-xl text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                      className="p-3 rounded-xl text-text-subtle hover:text-red-400 hover:bg-red-400/10 transition-colors"
                       title="Remove from library"
                     >
                       <MinusCircle size={16} />
@@ -839,7 +841,7 @@ const PlaylistDrawer = ({
           </section>
         </div>
 
-        <div className="p-6 border-t border-white/10">
+        <div className="p-6 border-t border-text-subtle/10">
           <Button
             variant="solid"
             className="w-full py-4 bg-accent text-bg font-black rounded-2xl uppercase tracking-[0.2em] hover:scale-[1.02] transition-transform"
@@ -870,16 +872,16 @@ const PlaylistDrawer = ({
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 className="fixed inset-0 z-[103] flex items-center justify-center pointer-events-none p-4"
               >
-                <div className="glass border border-white/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
+                <div className="glass border border-text-subtle/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
                   <div className="flex items-start gap-3 mb-4">
 
                     <div>
-                      <h3 className="text-lg font-bold text-white mb-1">
+                      <h3 className="text-lg font-bold text-text mb-1">
                         Delete Audio Track?
                       </h3>
-                      <p className="text-sm text-white/60">
+                      <p className="text-sm text-text-muted">
                         Are you sure you want to delete{" "}
-                        <span className="text-white font-medium">
+                        <span className="text-text font-medium">
                           {formatAudioName(audioToDelete.name)}
                         </span>
                         ? This will also remove it from any intervals using this track.
@@ -967,6 +969,38 @@ export default function App() {
   // Save confirmation states
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [timelineSaved, setTimelineSaved] = useState(false);
+
+  // Theme state - initialize from system preference or localStorage
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    // First check localStorage
+    const saved = localStorage.getItem("tempotread_theme");
+    if (saved === "light" || saved === "dark") return saved;
+    // Then check system preference
+    if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+      return "light";
+    }
+    return "dark";
+  });
+
+  // Apply data-theme attribute immediately and on change
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("tempotread_theme", theme);
+  }, [theme]);
+
+  // Listen for system theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
+    const handler = (e: MediaQueryListEvent) => {
+      // Only auto-switch if user hasn't manually set a preference
+      const saved = localStorage.getItem("tempotread_theme");
+      if (!saved) {
+        setTheme(e.matches ? "light" : "dark");
+      }
+    };
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
 
   // Compute color groups from intervals
   const colorGroups = useMemo(() => buildColorGroups(intervals), [intervals]);
@@ -1515,16 +1549,16 @@ export default function App() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="min-h-screen bg-bg text-white font-sans antialiased flex items-center justify-center"
+          className="min-h-screen bg-bg text-text font-sans antialiased flex items-center justify-center"
         >
           <div className="flex flex-col items-center gap-4">
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              className="w-10 h-10 border-3 border-white/10 border-t-accent rounded-full"
+              className="w-10 h-10 border-3 border-text-subtle/20 border-t-accent rounded-full"
               style={{ borderWidth: "3px" }}
             />
-            <p className="text-xs font-mono text-white/40 uppercase tracking-widest">
+            <p className="text-xs font-mono text-text-subtle uppercase tracking-widest">
               Loading...
             </p>
           </div>
@@ -1535,7 +1569,7 @@ export default function App() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2 }}
-          className="min-h-screen bg-bg text-white font-sans antialiased selection:bg-accent/30 overflow-x-hidden"
+          className="min-h-screen bg-bg text-text font-sans antialiased selection:bg-accent/30 overflow-x-hidden"
         >
           <div className="max-w-7xl mx-auto flex flex-col p-4 md:p-8 lg:p-12 min-h-screen">
         <header className="flex flex-col gap-4 mb-4 lg:mb-8">
@@ -1554,7 +1588,7 @@ export default function App() {
               <LoginButton />
               <button
                 onClick={() => setShowSettings(true)}
-                className="p-2.5 sm:p-3 glass rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all hover:scale-110 active:scale-95"
+                className="p-2.5 sm:p-3 glass rounded-full text-text-muted hover:text-text hover:bg-text-subtle/10 transition-all hover:scale-110 active:scale-95"
                 title="Settings & Library"
               >
                 <Settings size={18} className="sm:w-5 sm:h-5" />
@@ -1564,7 +1598,7 @@ export default function App() {
         </header>
 
         {/* Sticky Workout Title & Duration - Outside flex container */}
-        <div className="sticky top-0 z-30 bg-bg/95 backdrop-blur-md py-3 border-b border-white/5 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-12 lg:px-12">
+        <div className="sticky top-0 z-30 bg-bg/95 backdrop-blur-md py-3 border-b border-text-subtle/10 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-12 lg:px-12">
             <input
               value={workoutTitle}
               onChange={(e) => setWorkoutTitle(e.target.value)}
@@ -1573,14 +1607,14 @@ export default function App() {
             />
             <div className="flex items-end justify-between mt-1">
               <div className="text-left">
-                <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest">
+                <p className="text-[10px] text-text-subtle font-mono uppercase tracking-widest">
                   {state === "running" ||
                   state === "paused" ||
                   state === "countdown"
                     ? "Remaining"
                     : "Total Duration"}
                 </p>
-                <p className="text-lg font-mono text-white/80">
+                <p className="text-lg font-mono text-text-muted">
                   {state === "running" ||
                   state === "paused" ||
                   state === "countdown"
@@ -1592,7 +1626,7 @@ export default function App() {
               {/* New Workout Button */}
               <button
                 onClick={() => setShowNewWorkoutConfirm(true)}
-                className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-white/70 hover:text-white hover:bg-white/10 transition-all border border-white/10 text-[10px] font-bold uppercase tracking-wider mr-4"
+                className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-text-muted hover:text-text hover:bg-text-subtle/10 transition-all border border-text-subtle/10 text-[10px] font-bold uppercase tracking-wider mr-4"
                 title="Start new workout"
               >
                 <Plus size={12} />
@@ -1634,7 +1668,7 @@ export default function App() {
           {/* Timeline Section */}
           <div className="flex flex-col h-[calc(100vh-280px)]">
             {/* Workout Timeline Guide - Sticky with Navigation */}
-            <div className="sticky top-0 z-20 bg-bg py-2 -mx-4 px-4 border-b border-white/10">
+            <div className="sticky top-0 z-20 bg-bg py-2 -mx-4 px-4 border-b border-text-subtle/10">
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -1675,7 +1709,7 @@ export default function App() {
                         }}
                       />
                       <p
-                        className="text-[10px] font-medium truncate max-w-[70px] text-center leading-tight group-hover:text-white transition-colors"
+                        className="text-[10px] font-medium truncate max-w-[70px] text-center leading-tight group-hover:text-text transition-colors"
                         style={{ color: interval.color }}
                       >
                         {interval.name}
@@ -1721,13 +1755,13 @@ export default function App() {
           {/* Add Interval Button - Fixed above Let's Go */}
           <button
             onClick={addInterval}
-            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 py-1.5 px-10 bg-[#1a1a2e] rounded-full flex items-center justify-center gap-2 border border-white/10 cursor-pointer"
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 py-1.5 px-10 bg-bg rounded-full flex items-center justify-center gap-2 border border-text-subtle/10 cursor-pointer"
           >
             <Plus
               size={14}
-              className="text-white/50"
+              className="text-text-subtle"
             />
-            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-subtle">
               Interval
             </span>
           </button>
@@ -1762,13 +1796,13 @@ export default function App() {
               >
                 {countdownValue}
               </motion.div>
-              <p className="mt-4 text-white/40 font-mono uppercase tracking-[0.3em] text-sm">
+              <p className="mt-4 text-text-subtle font-mono uppercase tracking-[0.3em] text-sm">
                 Get Ready
               </p>
 
               {currentSong && (
                 <div className="mt-8 w-full max-w-xs">
-                  <p className="text-[10px] font-mono text-white/40 uppercase mb-3 flex items-center justify-center gap-2">
+                  <p className="text-[10px] font-mono text-text-subtle uppercase mb-3 flex items-center justify-center gap-2">
                     <Music
                       size={12}
                       className="animate-pulse"
@@ -1776,11 +1810,11 @@ export default function App() {
                     />{" "}
                     Now Playing
                   </p>
-                  <div className="glass bg-white/5 p-4 rounded-2xl">
+                  <div className="glass bg-text-subtle/5 p-4 rounded-2xl">
                     <p className="text-sm font-bold truncate mb-2">
                       {currentSong.name}
                     </p>
-                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-text-subtle/10 rounded-full overflow-hidden">
                       <div
                         className="h-full transition-all duration-500"
                         style={{
@@ -1803,7 +1837,7 @@ export default function App() {
                 {/* Exit Button */}
                 <button
                   onClick={resetWorkout}
-                  className="absolute top-6 right-6 p-3 glass rounded-full text-white/60 hover:text-white transition-colors z-20"
+                  className="absolute top-6 right-6 p-3 glass rounded-full text-text-muted hover:text-text transition-colors z-20"
                   title="Exit Workout"
                 >
                   <X size={24} />
@@ -1811,7 +1845,7 @@ export default function App() {
 
                 {/* Timer Display */}
                 <div className="flex flex-col items-center mb-4">
-                  <p className="text-[10px] font-mono text-white/40 uppercase tracking-[0.3em] mb-2">
+                  <p className="text-[10px] font-mono text-text-subtle uppercase tracking-[0.3em] mb-2">
                     {state === "finished" ? "FINISHED" : "NOW"}
                   </p>
                   <h1
@@ -1824,7 +1858,7 @@ export default function App() {
                   </h1>
                   {currentIndex < intervals.length - 1 &&
                     state !== "finished" && (
-                      <p className="text-sm text-white/30 font-medium">
+                      <p className="text-sm text-text-subtle/70 font-medium">
                         Next: {intervals[currentIndex + 1].name}
                       </p>
                     )}
@@ -1872,11 +1906,11 @@ export default function App() {
                   </svg>
 
                   <div className="flex flex-col items-center z-10 px-2">
-                    <p className="text-5xl font-mono font-black tabular-nums text-white leading-none">
+                    <p className="text-5xl font-mono font-black tabular-nums text-text leading-none">
                       {Math.floor(timeLeft / 60)}:
                       {(timeLeft % 60).toString().padStart(2, "0")}
                     </p>
-                    <p className="text-[9px] font-mono text-white/40 uppercase tracking-[0.2em] mt-1.5">
+                    <p className="text-[9px] font-mono text-text-subtle/70 uppercase tracking-[0.2em] mt-1.5">
                       LEFT
                     </p>
                   </div>
@@ -1901,7 +1935,7 @@ export default function App() {
                         Interval Notes
                       </span>
                     </div>
-                    <p className="text-[11px] text-white/70 italic break-words">
+                    <p className="text-[11px] text-text-muted/90 italic break-words">
                       {currentInterval.notes}
                     </p>
                   </motion.div>
@@ -2021,20 +2055,20 @@ export default function App() {
                   </div>
 
                   {currentSong && (
-                    <div className="glass bg-white/5 p-4 rounded-2xl text-left">
+                    <div className="glass bg-text-subtle/5 p-4 rounded-2xl text-left">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-[10px] font-mono text-white/40 uppercase tracking-wider flex items-center gap-1.5">
+                        <p className="text-[10px] font-mono text-text-subtle/70 uppercase tracking-wider flex items-center gap-1.5">
                           <Music size={11} style={{ color: themeColor }} /> Now
                           Playing
                         </p>
-                        <span className="text-[10px] font-mono text-white/20">
+                        <span className="text-[10px] font-mono text-text-subtle/30">
                           {currentSong.index + 1} / {currentSong.totalSongs}
                         </span>
                       </div>
                       <p className="text-sm font-bold truncate mb-2">
                         {currentSong.name}
                       </p>
-                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mb-1">
+                      <div className="w-full h-1.5 bg-text-subtle/10 rounded-full overflow-hidden mb-1">
                         <div
                           className="h-full transition-all duration-500"
                           style={{
@@ -2043,7 +2077,7 @@ export default function App() {
                           }}
                         />
                       </div>
-                      <div className="flex justify-between text-[10px] font-mono text-white/30">
+                      <div className="flex justify-between text-[10px] font-mono text-text-subtle/40">
                         <span>
                           {Math.floor(currentSong.currentTime / 60)}:
                           {Math.floor(currentSong.currentTime % 60)
@@ -2083,7 +2117,7 @@ export default function App() {
 
                 <div className="space-y-6 overflow-y-auto pr-4 custom-scrollbar flex-1">
                   <section>
-                    <h3 className="text-xs font-mono text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
                       <Save size={14} /> Save Current Timeline
                     </h3>
                     <button
@@ -2115,7 +2149,7 @@ export default function App() {
                           alert("Save failed: " + (err instanceof Error ? err.message : "Unknown error"));
                         }
                       }}
-                      className="w-full py-4 bg-accent text-bg font-black rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-accent/20"
+                      className="w-full py-4 bg-accent text-bg font-black rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 shadow-lg shadow-accent/20 mx-1"
                     >
                       <Save size={20} />
                       <span className="font-bold">Save "{workoutTitle}"</span>
@@ -2124,14 +2158,14 @@ export default function App() {
 
                   {savedWorkouts.length > 0 && (
                     <section>
-                      <h3 className="text-xs font-mono text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
                         <FolderOpen size={14} /> Saved Timelines
                       </h3>
                       <div className="space-y-2">
                         {savedWorkouts.map((workout) => (
                           <div
                             key={workout.id}
-                            className="glass p-4 rounded-2xl flex items-center justify-between group hover:bg-white/5 transition-colors"
+                            className="glass p-4 rounded-2xl flex items-center justify-between group hover:bg-text-subtle/10"
                           >
                             <div
                               className="flex-1 cursor-pointer"
@@ -2140,7 +2174,7 @@ export default function App() {
                               <p className="font-bold text-lg">
                                 {workout.title}
                               </p>
-                              <p className="text-[10px] font-mono text-white/30 uppercase tracking-wider">
+                              <p className="text-[10px] font-mono text-text-subtle/40 uppercase tracking-wider">
                                 {workout.intervals.length} Intervals •{" "}
                                 {(() => {
                                   const totalSeconds = workout.intervals.reduce(
@@ -2155,7 +2189,7 @@ export default function App() {
                             </div>
                             <button
                               onClick={() => deleteSavedWorkout(workout.id)}
-                              className="p-3 text-white/20 hover:text-red-400 transition-colors"
+                              className="p-3 text-text-subtle/30 hover:text-red-400"
                               title="Delete Saved Workout"
                             >
                               <MinusCircle size={20} />
@@ -2167,17 +2201,17 @@ export default function App() {
                   )}
 
                   <section>
-                    <h3 className="text-xs font-mono text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
                       <Volume2 size={14} /> Alarm Settings
                     </h3>
                     <div className="glass p-4 rounded-2xl space-y-4">
                       {/* Volume Slider */}
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
-                          <label className="text-sm text-white/70">
+                          <label className="text-sm text-text-muted/90">
                             Alarm Volume
                           </label>
-                          <span className="text-sm font-mono text-white/50">
+                          <span className="text-sm font-mono text-text-subtle/60">
                             {Math.round(alarmVolume * 100)}%
                           </span>
                         </div>
@@ -2190,13 +2224,13 @@ export default function App() {
                           onChange={(e) =>
                             setAlarmVolume(parseFloat(e.target.value))
                           }
-                          className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-accent hover:bg-white/20 transition-colors"
+                          className="w-full h-2 bg-text-subtle/20 rounded-lg appearance-none cursor-pointer accent-accent hover:bg-text-subtle/30 transition-colors"
                         />
                       </div>
 
                       {/* Preset Selector */}
                       <div className="space-y-3">
-                        <label className="text-sm text-white/70">
+                        <label className="text-sm text-text-muted/90">
                           Alarm Sound
                         </label>
                         <div className="grid grid-cols-2 gap-2">
@@ -2235,16 +2269,16 @@ export default function App() {
                                 )
                               }
                               className={cn(
-                                "p-3 rounded-xl border text-left transition-all",
+                                "p-3 rounded-xl border text-left",
                                 alarmPreset === preset.value
                                   ? "border-accent bg-accent/10"
-                                  : "border-white/10 bg-white/5 hover:border-white/20",
+                                  : "border-text-subtle/20 bg-text-subtle/10 hover:border-text-subtle/30",
                               )}
                             >
-                              <div className="text-xs font-bold text-white/90">
+                              <div className="text-xs font-bold text-text/90">
                                 {preset.label}
                               </div>
-                              <div className="text-[10px] text-white/40 truncate">
+                              <div className="text-[10px] text-text-subtle/50 truncate">
                                 {preset.desc}
                               </div>
                             </button>
@@ -2277,7 +2311,7 @@ export default function App() {
                           />
                           <button
                             onClick={() => alarmFileInputRef.current?.click()}
-                            className="w-full py-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-2 text-sm hover:bg-white/10 transition-colors"
+                            className="w-full py-3 bg-text-subtle/10 border border-text-subtle/20 rounded-xl flex items-center justify-center gap-2 text-sm hover:bg-text-subtle/20"
                           >
                             <Upload size={16} />
                             {customAlarmName
@@ -2285,8 +2319,8 @@ export default function App() {
                               : "Upload Custom Sound"}
                           </button>
                           {customAlarmName && (
-                            <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                              <span className="text-xs text-white/70 truncate">
+                            <div className="flex items-center justify-between p-3 bg-text-subtle/10 rounded-lg">
+                              <span className="text-xs text-text-muted/90 truncate">
                                 {customAlarmName}
                               </span>
                               <button
@@ -2295,7 +2329,7 @@ export default function App() {
                                   setCustomAlarmName("");
                                   setAlarmPreset("digital");
                                 }}
-                                className="text-white/30 hover:text-red-400 transition-colors"
+                                className="text-text-subtle/40 hover:text-red-400"
                                 aria-label="Clear custom alarm"
                               >
                                 <MinusCircle size={16} />
@@ -2308,19 +2342,19 @@ export default function App() {
                       {/* Test Button */}
                       <button
                         onClick={() => audioEngine.testAlarm()}
-                        className="w-full py-3 bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-accent hover:bg-accent/20 transition-colors"
+                        className="w-full py-3 bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-accent hover:bg-accent/20"
                       >
                         <Play size={16} fill="currentColor" />
                         Test Alarm Sound
                       </button>
 
                       {/* Halfway Sound Toggle */}
-                      <div className="flex items-center justify-between py-3 border-t border-white/10">
+                      <div className="flex items-center justify-between py-3 border-t border-text-subtle/10">
                         <div>
-                          <label className="text-sm text-white/70">
+                          <label className="text-sm text-text-muted/90">
                             Halfway Alert
                           </label>
-                          <p className="text-[10px] text-white/40">
+                          <p className="text-[10px] text-text-subtle/50">
                             Sound when interval reaches 50%
                           </p>
                         </div>
@@ -2329,8 +2363,8 @@ export default function App() {
                             setHalfwaySoundEnabled(!halfwaySoundEnabled)
                           }
                           className={cn(
-                            "w-11 h-6 rounded-full transition-colors relative flex items-center",
-                            halfwaySoundEnabled ? "bg-accent" : "bg-white/20",
+                            "w-11 h-6 rounded-full relative flex items-center",
+                            halfwaySoundEnabled ? "bg-accent" : "bg-text-subtle/40",
                           )}
                           aria-label={
                             halfwaySoundEnabled
@@ -2341,7 +2375,7 @@ export default function App() {
                         >
                           <span
                             className={cn(
-                              "w-4 h-4 rounded-full bg-white transition-transform",
+                              "w-4 h-4 rounded-full bg-text",
                               halfwaySoundEnabled
                                 ? "translate-x-6"
                                 : "translate-x-1",
@@ -2352,7 +2386,7 @@ export default function App() {
 
                       {/* Save Settings Button */}
                       {user && (
-                        <div className="pt-4 border-t border-white/10">
+                        <div className="pt-4 border-t border-text-subtle/10">
                           <button
                             onClick={async () => {
                               // Save workout data using saveOrReplaceWorkout
@@ -2378,7 +2412,7 @@ export default function App() {
                               setSettingsSaved(true);
                               setTimeout(() => setSettingsSaved(false), 2000);
                             }}
-                            className="w-full py-3 bg-accent text-bg font-bold rounded-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-accent/20"
+                            className="w-full py-3 bg-accent text-bg font-bold rounded-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 shadow-lg shadow-accent/20"
                           >
                             <Save size={16} />
                             {settingsSaved ? "Saved!" : "Save"}
@@ -2388,17 +2422,61 @@ export default function App() {
                     </div>
                   </section>
 
+                  {/* Theme Toggle Section - Moved below Alarm Settings */}
                   <section>
-                    <h3 className="text-xs font-mono text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />} Appearance
+                    </h3>
+                    <div className="glass p-4 rounded-2xl">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-sm text-text-muted/90">
+                            Theme
+                          </label>
+                          <p className="text-[10px] text-text-subtle/50">
+                            {theme === "dark" ? "Dark mode enabled" : "Light mode enabled"}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                          className={cn(
+                            "w-14 h-8 rounded-full relative flex items-center p-1",
+                            theme === "dark" ? "bg-accent/30" : "bg-accent/30"
+                          )}
+                          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                        >
+                          <span className="sr-only">
+                            {theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                          </span>
+                          <motion.span
+                            layout
+                            className={cn(
+                              "w-6 h-6 rounded-full flex items-center justify-center shadow-sm",
+                              theme === "dark" ? "bg-bg translate-x-6" : "bg-text translate-x-0"
+                            )}
+                          >
+                            {theme === "dark" ? (
+                              <Moon size={14} className="text-text" />
+                            ) : (
+                              <Sun size={14} className="text-bg" />
+                            )}
+                          </motion.span>
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
                       <Settings size={14} /> App Information
                     </h3>
                     <div className="glass p-5 rounded-2xl space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-white/40">Version</span>
+                        <span className="text-text-subtle/50">Version</span>
                         <span className="font-mono">1.2.0-responsive</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-white/40">Build Date</span>
+                        <span className="text-text-subtle/50">Build Date</span>
                         <span className="font-mono">MAR 2026</span>
                       </div>
                     </div>
@@ -2436,7 +2514,7 @@ export default function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99]"
+                className="fixed inset-0 bg-text-subtle/60 backdrop-blur-sm z-[99]"
                 onClick={() => setViewingNotesId(null)}
               />
               <motion.div
@@ -2458,17 +2536,17 @@ export default function App() {
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-text-subtle/50">
                         Interval Notes
                       </span>
-                      <p className="text-sm font-bold text-white/80 mt-1">
+                      <p className="text-sm font-bold text-text-muted/90 mt-1">
                         {intervals.find((i) => i.id === viewingNotesId)?.name ||
                           "Untitled"}
                       </p>
                     </div>
                     <button
                       onClick={() => setViewingNotesId(null)}
-                      className="text-white/30 hover:text-white"
+                      className="text-text-subtle/40 hover:text-text"
                       aria-label="Close notes"
                     >
                       <X size={16} />
@@ -2484,7 +2562,7 @@ export default function App() {
                       updateInterval(viewingNotesId, { notes: e.target.value })
                     }
                     placeholder="Add notes for this interval..."
-                    className="w-full h-32 bg-white/5 border rounded-lg p-3 text-sm text-white/80 focus:outline-none resize-none placeholder:text-white/10 transition-all focus:ring-2 focus:border-transparent"
+                    className="w-full h-32 bg-text-subtle/10 border rounded-lg p-3 text-sm text-text-muted/90 focus:outline-none resize-none placeholder:text-text-subtle/20 transition-all focus:ring-2 focus:border-transparent"
                     style={{
                       borderColor: `${intervals.find((i) => i.id === viewingNotesId)?.color || "#ffffff"}20`,
                       ringColor: intervals.find((i) => i.id === viewingNotesId)
@@ -2506,7 +2584,7 @@ export default function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110]"
+                className="fixed inset-0 bg-text-subtle/60 backdrop-blur-sm z-[110]"
                 onClick={() => setShowNewWorkoutConfirm(false)}
               />
               <motion.div
@@ -2516,13 +2594,14 @@ export default function App() {
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 className="fixed inset-0 z-[111] flex items-center justify-center pointer-events-none p-4"
               >
-                <div className="glass border border-white/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
+                <div className="glass border border-text-subtle/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
                   <div className="flex items-start gap-3 mb-4">
+
                     <div>
-                      <h3 className="text-lg font-bold text-white mb-1">
+                      <h3 className="text-lg font-bold text-text mb-1">
                         Start New Workout?
                       </h3>
-                      <p className="text-sm text-white/60">
+                      <p className="text-sm text-text-muted">
                         This will clear all current intervals and reset the workout title. This action cannot be undone.
                       </p>
                     </div>

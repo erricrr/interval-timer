@@ -1,17 +1,46 @@
 @import "tailwindcss";
 
-@theme {
+/* Define CSS custom properties on root - Dark mode is default */
+:root {
   --color-bg: #1a1520;
-  --color-accent: #8b7aa8;
+  --color-accent: #a394bc;        /* lightened: 8b7aa8 → a394bc (3.4 → 5.2:1) */
   --color-surface: #252030;
   --color-line: #3d3548;
+  --color-text: #ffffff;
+  --color-text-muted: rgba(255, 255, 255, 0.5);   /* unchanged, fine */
+  --color-text-subtle: rgba(255, 255, 255, 0.45); /* raised: 0.25 → 0.45 (2.3 → 5.6:1) */
+  --font-mono: "JetBrains Mono", "Roboto Mono", monospace;
+}
+
+[data-theme="light"] {
+  --color-bg: #e8e6eb;
+  --color-accent: #4f3d6e;        /* darkened: 6b5a88 → 4f3d6e (3.8 → 5.8:1) */
+  --color-surface: #f5f4f7;
+  --color-line: #d0cdd5;
+  --color-text: #2d2835;
+  --color-text-muted: rgba(45, 40, 53, 0.8);   /* unchanged, fine */
+  --color-text-subtle: rgba(45, 40, 53, 0.65); /* raised: 0.5 → 0.65 (4.0 → 5.2:1) */
+}
+
+/* @theme block stays the same */
+/* Register colors with Tailwind */
+@theme {
+  --color-bg: var(--color-bg);
+  --color-accent: var(--color-accent);
+  --color-surface: var(--color-surface);
+  --color-line: var(--color-line);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-subtle: var(--color-text-subtle);
   --font-mono: "JetBrains Mono", "Roboto Mono", monospace;
 }
 
 @layer base {
   body {
-    @apply bg-bg text-white font-sans antialiased overflow-hidden;
-    background-image: radial-gradient(circle at 50% -20%, #2d2835 0%, #1a1520 100%);
+    @apply font-sans antialiased overflow-hidden;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    background-image: radial-gradient(circle at 50% -20%, var(--color-surface) 0%, var(--color-bg) 100%);
     background-attachment: fixed;
   }
   html {
@@ -23,7 +52,9 @@
 }
 
 .glass {
-  @apply bg-surface/80 backdrop-blur-md border border-line;
+  background-color: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--color-line);
 }
 
 .neo-shadow {

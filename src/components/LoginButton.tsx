@@ -54,7 +54,7 @@ export function LoginButton({ className }: LoginButtonProps) {
   if (loading) {
     return (
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full bg-white/10 animate-pulse" />
+        <div className="w-8 h-8 rounded-full bg-text-subtle/10 animate-pulse" />
       </div>
     );
   }
@@ -63,7 +63,7 @@ export function LoginButton({ className }: LoginButtonProps) {
   if (user) {
     return (
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-white/20">
+        <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-text-subtle/20">
           {user.photoURL ? (
             <img
               src={user.photoURL}
@@ -79,7 +79,7 @@ export function LoginButton({ className }: LoginButtonProps) {
         </div>
         <button
           onClick={handleLogout}
-          className="p-2 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all hover:scale-110 active:scale-95"
+          className="p-2 rounded-full text-text-muted hover:text-text hover:bg-text-subtle/10 transition-all hover:scale-110 active:scale-95"
           title="Log out"
         >
           <LogOut size={18} />
@@ -92,7 +92,7 @@ export function LoginButton({ className }: LoginButtonProps) {
   return (
     <button
       onClick={handleLogin}
-      className={`flex items-center gap-2 px-3 py-2 text-xs sm:text-sm text-white/60 hover:text-white hover:bg-white/10 rounded-full transition-all hover:scale-105 active:scale-95 ${className || ""}`}
+      className={`flex items-center gap-2 px-3 py-2 text-xs sm:text-sm text-text-muted hover:text-text hover:bg-text-subtle/10 rounded-full transition-all hover:scale-105 active:scale-95 ${className || ""}`}
       title="Sign in with Google"
     >
       <GoogleIcon />
