@@ -38,7 +38,7 @@ import {
 import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup, PlaylistTrack } from "./lib/utils";
 import { audioEngine } from "./lib/audio";
 import { LoginButton } from "./components/LoginButton";
-import { auth } from "./lib/firebase";
+import { auth, onAuthStateChanged } from "./lib/firebase";
 import {
   saveSettings,
   loadSettings,
@@ -151,6 +151,70 @@ const Button = ({
     >
       {children}
     </button>
+  );
+};
+
+interface ConfirmDialogProps {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+const ConfirmDialog = ({
+  isOpen,
+  title,
+  message,
+  confirmLabel = "Delete",
+  cancelLabel = "Cancel",
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) => {
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[102]"
+        onClick={onCancel}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="fixed inset-0 z-[103] flex items-center justify-center pointer-events-none p-4"
+      >
+        <div className="glass border border-text-subtle/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-text mb-2">{title}</h3>
+            <p className="text-sm text-text-muted">{message}</p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="secondary"
+              className="flex-1 py-3"
+              onClick={onCancel}
+            >
+              {cancelLabel}
+            </Button>
+            <Button
+              variant="danger"
+              className="flex-1 py-3"
+              onClick={onConfirm}
+            >
+              {confirmLabel}
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
@@ -854,64 +918,19 @@ const PlaylistDrawer = ({
           </Button>
         </div>
 
-        {/* Delete Confirmation Modal */}
-        <AnimatePresence>
-          {audioToDelete && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[102]"
-                onClick={() => setAudioToDelete(null)}
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="fixed inset-0 z-[103] flex items-center justify-center pointer-events-none p-4"
-              >
-                <div className="glass border border-text-subtle/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
-                  <div className="flex items-start gap-3 mb-4">
-
-                    <div>
-                      <h3 className="text-lg font-bold text-text mb-1">
-                        Delete Audio Track?
-                      </h3>
-                      <p className="text-sm text-text-muted">
-                        Are you sure you want to delete{" "}
-                        <span className="text-text font-medium">
-                          {formatAudioName(audioToDelete.name)}
-                        </span>
-                        ? This will also remove it from any intervals using this track.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <Button
-                      variant="secondary"
-                      className="flex-1 py-3"
-                      onClick={() => setAudioToDelete(null)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="danger"
-                      className="flex-1 py-3"
-                      onClick={() => {
-                        onRemoveAudio(audioToDelete.id);
-                        setAudioToDelete(null);
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        {/* Delete Audio Confirmation */}
+        <ConfirmDialog
+          isOpen={audioToDelete !== null}
+          title="Delete Audio Track?"
+          message={`Are you sure you want to delete "${audioToDelete ? formatAudioName(audioToDelete.name) : ''}"? This will also remove it from any intervals using this track.`}
+          onConfirm={() => {
+            if (audioToDelete) {
+              onRemoveAudio(audioToDelete.id);
+              setAudioToDelete(null);
+            }
+          }}
+          onCancel={() => setAudioToDelete(null)}
+        />
       </motion.div>
     </>
   );
@@ -950,6 +969,7 @@ export default function App() {
   >([]);
   const [isUploading, setIsUploading] = useState(false);
   const [showNewWorkoutConfirm, setShowNewWorkoutConfirm] = useState(false);
+  const [workoutToDelete, setWorkoutToDelete] = useState<{ id: string; title: string } | null>(null);
 
   // Firebase auth state
   const [user, setUser] = useState(auth.currentUser);
@@ -1009,28 +1029,36 @@ export default function App() {
   const lastTickRef = useRef<number>(0);
   const timelineRef = useRef<HTMLDivElement>(null);
 
-  // Auth listener
+  // Auth listener - properly gated data loading
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      console.log("Auth user:", currentUser?.uid);
       setUser(currentUser);
       setIsAuthLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
 
-  // Load-on-login: fetch user data from Firebase in parallel
-  useEffect(() => {
-    if (!user) return;
+      if (!currentUser) {
+        // User is not logged in, clear Firestore-dependent state
+        setIsDataLoading(false);
+        return;
+      }
 
-    const loadUserData = async () => {
+      // User is logged in - load all Firestore data
       setIsDataLoading(true);
+
       try {
-        // Load critical data in parallel
+        // Load workout data, settings, and saved workouts in parallel
         const [workoutData, settings, workouts] = await Promise.all([
-          loadWorkout(user.uid),
-          loadSettings(user.uid),
-          loadSavedWorkouts(user.uid).catch(() => []),
+          loadWorkout(currentUser.uid),
+          loadSettings(currentUser.uid),
+          loadSavedWorkouts(currentUser.uid).catch((err) => {
+            console.error("Failed to load saved workouts:", err);
+            return [];
+          }),
         ]);
+
+        console.log("Loaded workout data:", workoutData ? "yes" : "no");
+        console.log("Loaded settings:", settings ? "yes" : "no");
+        console.log("Loaded saved workouts count:", workouts.length);
 
         if (workoutData) {
           setWorkoutTitle(workoutData.workoutTitle?.trim() || "TempoTread Session");
@@ -1045,36 +1073,43 @@ export default function App() {
         }
 
         setSavedWorkouts(workouts);
-      } finally {
-        setIsDataLoading(false);
+      } catch (err) {
+        console.error("Firestore failed (loadUserData):", err);
       }
-    };
 
-    // Load audio library in background (non-blocking)
-    const loadAudio = async () => {
+      // Load audio library separately with its own error handling
       try {
-        const audioEntries = await loadAudioLibrary(user.uid);
+        const audioEntries = await loadAudioLibrary(currentUser.uid);
+        console.log("Loaded audio count from Firestore:", audioEntries.length);
+
         const paths: Record<string, string> = {};
+        const libraryForUI: { id: string; name: string }[] = [];
+
         await Promise.all(
           audioEntries.map(async (entry) => {
             try {
               await audioEngine.addAudioFromURL(entry.id, entry.name, entry.downloadURL);
               paths[entry.id] = entry.storagePath;
+              libraryForUI.push({ id: entry.id, name: entry.name });
             } catch (audioErr) {
               console.error(`Failed to load audio ${entry.name}:`, audioErr);
             }
           })
         );
-        setAudioStoragePaths(paths);
-        setAudioLibrary(audioEngine.getAudioLibrary());
-      } catch (err) {
-        console.error("Failed to load audio library:", err);
-      }
-    };
 
-    loadUserData();
-    loadAudio(); // Non-blocking
-  }, [user]);
+        setAudioStoragePaths(paths);
+        // UI is driven by Firestore data, not AudioEngine internal state
+        setAudioLibrary(libraryForUI);
+        console.log("Audio library set for UI:", libraryForUI.length);
+      } catch (err) {
+        console.error("Firestore failed (loadAudio):", err);
+      } finally {
+        setIsDataLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     // Only load from localStorage if user is not logged in (fallback)
@@ -2188,7 +2223,7 @@ export default function App() {
                               </p>
                             </div>
                             <button
-                              onClick={() => deleteSavedWorkout(workout.id)}
+                              onClick={() => setWorkoutToDelete({ id: workout.id, title: workout.title })}
                               className="p-3 text-text-subtle/30 hover:text-red-400"
                               title="Delete Saved Workout"
                             >
@@ -2576,57 +2611,29 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* New Workout Confirmation Dialog */}
-        <AnimatePresence>
-          {showNewWorkoutConfirm && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-text-subtle/60 backdrop-blur-sm z-[110]"
-                onClick={() => setShowNewWorkoutConfirm(false)}
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="fixed inset-0 z-[111] flex items-center justify-center pointer-events-none p-4"
-              >
-                <div className="glass border border-text-subtle/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
-                  <div className="flex items-start gap-3 mb-4">
+        {/* Delete Workout Confirmation */}
+        <ConfirmDialog
+          isOpen={workoutToDelete !== null}
+          title="Delete Saved Timeline?"
+          message={`Are you sure you want to delete "${workoutToDelete?.title}"? This action cannot be undone.`}
+          onConfirm={() => {
+            if (workoutToDelete) {
+              deleteSavedWorkout(workoutToDelete.id);
+              setWorkoutToDelete(null);
+            }
+          }}
+          onCancel={() => setWorkoutToDelete(null)}
+        />
 
-                    <div>
-                      <h3 className="text-lg font-bold text-text mb-1">
-                        Start New Workout?
-                      </h3>
-                      <p className="text-sm text-text-muted">
-                        This will clear all current intervals and reset the workout title. This action cannot be undone.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <Button
-                      variant="secondary"
-                      className="flex-1 py-3"
-                      onClick={() => setShowNewWorkoutConfirm(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="danger"
-                      className="flex-1 py-3"
-                      onClick={clearWorkout}
-                    >
-                      Clear & Start New
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        {/* New Workout Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={showNewWorkoutConfirm}
+          title="Start New Workout?"
+          message="This will clear all current intervals and reset the workout title. This action cannot be undone."
+          confirmLabel="Clear & Start New"
+          onConfirm={clearWorkout}
+          onCancel={() => setShowNewWorkoutConfirm(false)}
+        />
       </div>
     </motion.div>
   )}
