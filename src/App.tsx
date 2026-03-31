@@ -480,14 +480,173 @@ const IntervalCard = ({
               </AnimatePresence>
             </div>
 
-            {/* Main Row: Color | Title | Time */}
-            <div className="flex items-center gap-3 pr-10">
+            {/* Mobile Layout: Two Rows */}
+            <div className="sm:hidden flex flex-col gap-2">
+              {/* Top Row: Color & Title */}
+              <div className="flex items-center gap-2.5 pr-8">
+                {/* Color Indicator & Picker */}
+                <div className="relative shrink-0">
+                  <button
+                    ref={colorButtonRef}
+                    onClick={() => setShowColorPicker(!showColorPicker)}
+                    className="w-1.5 h-8 rounded-full shrink-0 shadow-lg transition-transform hover:scale-110 active:scale-95"
+                    style={{
+                      backgroundColor: interval.color,
+                      boxShadow: `0 0 15px ${interval.color}40`,
+                    }}
+                    title="Change Color"
+                  />
+
+                  <AnimatePresence>
+                    {showColorPicker && (
+                      <motion.div
+                        ref={colorMenuRef}
+                        initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, x: -10 }}
+                        className="absolute left-full ml-3 -top-3 z-40 glass border border-text-subtle/10 rounded-xl p-2 grid grid-cols-5 gap-2 w-[160px]"
+                      >
+                        {COLORS.map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => {
+                              onUpdate({ color });
+                              setShowColorPicker(false);
+                            }}
+                            className={cn(
+                              "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
+                              interval.color === color
+                                ? "border-text"
+                                : "border-transparent",
+                            )}
+                            style={{ backgroundColor: color }}
+                            aria-label={`Select color ${color}`}
+                          />
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Title Input */}
+                <div className="flex-1 min-w-0">
+                  <input
+                    value={interval.name}
+                    onChange={(e) => onUpdate({ name: e.target.value })}
+                    placeholder="Interval Title"
+                    className="bg-transparent border-none p-0 font-bold text-sm text-text/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full placeholder:text-text-subtle/30 truncate"
+                  />
+                </div>
+              </div>
+
+              {/* Bottom Row: Halfway Alert & Time */}
+              <div className="flex items-center gap-3 pl-4">
+                {/* Halfway Alert Toggle */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Bell size={12} className="text-text-subtle" aria-hidden="true" />
+                  <label
+                    htmlFor={`halfway-alert-${interval.id}`}
+                    className="text-[10px] font-medium text-text-muted uppercase cursor-pointer"
+                  >
+                    50%
+                  </label>
+                  <button
+                    id={`halfway-alert-${interval.id}`}
+                    role="switch"
+                    aria-checked={interval.halfwayAlert ?? globalHalfwayAlert}
+                    onClick={() =>
+                      onUpdate({
+                        halfwayAlert: !(
+                          interval.halfwayAlert ?? globalHalfwayAlert
+                        ),
+                      })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onUpdate({
+                          halfwayAlert: !(
+                            interval.halfwayAlert ?? globalHalfwayAlert
+                          ),
+                        });
+                      }
+                    }}
+                    className={cn(
+                      "w-9 h-5 rounded-full transition-colors relative flex items-center shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+                      (interval.halfwayAlert ?? globalHalfwayAlert)
+                        ? "bg-accent"
+                        : "bg-text-subtle/40",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "w-3 h-3 rounded-full bg-text transition-transform",
+                        (interval.halfwayAlert ?? globalHalfwayAlert)
+                          ? "translate-x-5"
+                          : "translate-x-1",
+                      )}
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
+
+                {/* Time Section */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-0.5">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={mins === 0 ? "" : mins.toString()}
+                      placeholder="0"
+                      onChange={(e) => {
+                        const val = Math.max(
+                          0,
+                          parseInt(e.target.value.replace(/\D/g, "")) || 0,
+                        );
+                        onUpdate({ duration: val * 60 + secs });
+                      }}
+                      className="w-8 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-xl font-mono font-black text-text tabular-nums selection:bg-accent/30"
+                    />
+                    <span className="text-[8px] font-black text-text-muted uppercase tracking-wider">
+                      m
+                    </span>
+                  </div>
+                  <span className="text-lg font-mono text-text-subtle">
+                    :
+                  </span>
+                  <div className="flex items-center gap-0.5">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={secs === 0 ? "" : secs.toString()}
+                      placeholder="0"
+                      onChange={(e) => {
+                        let val =
+                          parseInt(e.target.value.replace(/\D/g, "")) || 0;
+                        if (val > 59) val = 59;
+                        if (val < 0) val = 0;
+                        onUpdate({ duration: mins * 60 + val });
+                      }}
+                      className="w-8 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-xl font-mono font-black text-text tabular-nums selection:bg-accent/30"
+                    />
+                    <span className="text-[8px] font-black text-text-muted uppercase tracking-wider">
+                      s
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Layout: Single Row */}
+            <div className="hidden sm:flex items-center gap-3 pr-10">
               {/* Color Indicator & Picker */}
               <div className="relative shrink-0">
                 <button
                   ref={colorButtonRef}
                   onClick={() => setShowColorPicker(!showColorPicker)}
-                  className="w-1.5 h-8 sm:h-10 rounded-full shrink-0 shadow-lg transition-transform hover:scale-110 active:scale-95"
+                  className="w-1.5 h-10 rounded-full shrink-0 shadow-lg transition-transform hover:scale-110 active:scale-95"
                   style={{
                     backgroundColor: interval.color,
                     boxShadow: `0 0 15px ${interval.color}40`,
@@ -532,7 +691,7 @@ const IntervalCard = ({
                   value={interval.name}
                   onChange={(e) => onUpdate({ name: e.target.value })}
                   placeholder="Interval Title"
-                  className="bg-transparent border-none p-0 font-bold text-sm sm:text-base text-text/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full placeholder:text-text-subtle/30 truncate"
+                  className="bg-transparent border-none p-0 font-bold text-base text-text/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full placeholder:text-text-subtle/30 truncate"
                 />
               </div>
 
@@ -586,7 +745,7 @@ const IntervalCard = ({
               </div>
 
               {/* Time Section */}
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 <div className="flex items-center gap-0.5">
                   <input
                     type="text"
@@ -601,13 +760,13 @@ const IntervalCard = ({
                       );
                       onUpdate({ duration: val * 60 + secs });
                     }}
-                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-xl sm:text-2xl font-mono font-black text-text tabular-nums selection:bg-accent/30"
+                    className="w-10 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-2xl font-mono font-black text-text tabular-nums selection:bg-accent/30"
                   />
-                  <span className="text-[8px] sm:text-[9px] font-black text-text-muted uppercase tracking-wider">
+                  <span className="text-[9px] font-black text-text-muted uppercase tracking-wider">
                     m
                   </span>
                 </div>
-                <span className="text-lg sm:text-xl font-mono text-text-subtle">
+                <span className="text-xl font-mono text-text-subtle">
                   :
                 </span>
                 <div className="flex items-center gap-0.5">
@@ -624,9 +783,9 @@ const IntervalCard = ({
                       if (val < 0) val = 0;
                       onUpdate({ duration: mins * 60 + val });
                     }}
-                    className="w-8 sm:w-10 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-xl sm:text-2xl font-mono font-black text-text tabular-nums selection:bg-accent/30"
+                    className="w-10 bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg text-right text-2xl font-mono font-black text-text tabular-nums selection:bg-accent/30"
                   />
-                  <span className="text-[8px] sm:text-[9px] font-black text-text-muted uppercase tracking-wider">
+                  <span className="text-[9px] font-black text-text-muted uppercase tracking-wider">
                     s
                   </span>
                 </div>
@@ -781,7 +940,6 @@ const PlaylistDrawer = ({
                   const audio = audioLibrary.find(
                     (a) => a.id === track.audioId,
                   );
-                  if (!audio) return null;
                   return (
                     <Reorder.Item
                       key={track.instanceId}
@@ -793,7 +951,7 @@ const PlaylistDrawer = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-text/80 truncate">
-                          {formatAudioName(audio.name)}
+                          {formatAudioName(audio!.name)}
                         </p>
                       </div>
                       <button
@@ -1023,7 +1181,7 @@ export default function App() {
   }, []);
 
   // Compute color groups from intervals
-  const colorGroups = useMemo(() => buildColorGroups(intervals), [intervals]);
+  const colorGroups = useMemo(() => buildColorGroups(intervals, audioLibrary), [intervals, audioLibrary]);
 
   const timerRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(0);
@@ -1060,9 +1218,39 @@ export default function App() {
         console.log("Loaded settings:", settings ? "yes" : "no");
         console.log("Loaded saved workouts count:", workouts.length);
 
-        if (workoutData) {
+        // Check if current workout exists in saved workouts library
+        let shouldLoadCurrentWorkout = false;
+        if (workoutData && workouts.length > 0) {
+          // Verify the current workout still exists in the library by matching title
+          const currentWorkoutExists = workouts.some(
+            w => w.title.trim().toLowerCase() === workoutData.workoutTitle?.trim().toLowerCase()
+          );
+          shouldLoadCurrentWorkout = currentWorkoutExists;
+          if (!currentWorkoutExists) {
+            console.log("Current workout no longer exists in library, will load first saved workout");
+          }
+        } else if (workoutData) {
+          // Has current workout but no saved workouts - keep the current workout
+          shouldLoadCurrentWorkout = true;
+        }
+
+        if (shouldLoadCurrentWorkout && workoutData) {
+          console.log("Loading current workout intervals:");
+          workoutData.intervals.forEach(i => {
+            console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
+          });
           setWorkoutTitle(workoutData.workoutTitle?.trim() || "TempoTread Session");
           setIntervals(workoutData.intervals || []);
+        } else if (workouts.length > 0) {
+          // No valid current workout but has saved workouts - load the first one
+          const firstWorkout = workouts[0];
+          console.log("Auto-loading first saved workout:", firstWorkout.title);
+          console.log("First workout intervals:");
+          firstWorkout.intervals.forEach(i => {
+            console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
+          });
+          setWorkoutTitle(firstWorkout.title);
+          setIntervals(firstWorkout.intervals);
         }
 
         if (settings) {
@@ -1149,6 +1337,33 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Auto-load first saved workout for non-logged-in users
+    if (user !== null || isAuthLoading) return; // Wait for auth to complete
+    if (savedWorkouts.length === 0) return; // No saved workouts to load
+
+    // Check if current workout title exists in saved workouts library
+    const currentWorkoutExists = savedWorkouts.some(
+      w => w.title.trim().toLowerCase() === workoutTitle.trim().toLowerCase()
+    );
+
+    // Check if we're still showing default intervals
+    const isDefaultIntervals = intervals.length === 3 &&
+      intervals[0].name === "Warm Up" &&
+      intervals[1].name === "Run" &&
+      intervals[2].name === "Recovery";
+
+    // Load first saved workout if:
+    // 1. Showing default intervals, OR
+    // 2. Current workout title doesn't exist in saved workouts (was deleted)
+    if (isDefaultIntervals || !currentWorkoutExists) {
+      const firstWorkout = savedWorkouts[0];
+      console.log("Auto-loading first saved workout for non-logged-in user:", firstWorkout.title);
+      setWorkoutTitle(firstWorkout.title);
+      setIntervals(firstWorkout.intervals);
+    }
+  }, [savedWorkouts, user, isAuthLoading, intervals, workoutTitle]);
+
+  useEffect(() => {
     // Only persist to localStorage when user is not logged in
     if (!user) {
       localStorage.setItem("tempotread_workouts", JSON.stringify(savedWorkouts));
@@ -1167,6 +1382,60 @@ export default function App() {
     audioEngine.setAlarmVolume(alarmVolume);
     audioEngine.setAlarmPreset(alarmPreset);
   }, [alarmVolume, alarmPreset, customAlarmName, halfwaySoundEnabled]);
+
+  // Auto-save intervals when they change (debounced)
+  useEffect(() => {
+    if (!user) {
+      console.log("Auto-save skipped: user not logged in");
+      return;
+    }
+
+    console.log("Auto-save scheduled for intervals:", intervals.map(i => ({
+      name: i.name,
+      color: i.color,
+      playlistCount: i.playlist?.length || 0
+    })));
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const titleToSave = workoutTitle?.trim() || "TempoTread Session";
+        console.log("Auto-saving workout:", titleToSave);
+        console.log("Intervals to save with playlists:");
+        intervals.forEach(i => {
+          console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
+        });
+
+        // Get current savedWorkouts to avoid stale closure
+        setSavedWorkouts(currentSavedWorkouts => {
+          // Run save async but don't block state update
+          (async () => {
+            try {
+              const result = await saveOrReplaceWorkout(user.uid, {
+                workoutTitle: titleToSave,
+                intervals,
+              }, currentSavedWorkouts);
+
+              console.log("Auto-save completed, workout ID:", result.id);
+
+              const newWorkout = { id: result.id, title: titleToSave, intervals };
+              setSavedWorkouts(prev => {
+                const filtered = prev.filter(w => w.id !== result.id);
+                return [newWorkout, ...filtered];
+              });
+            } catch (err) {
+              console.error("Auto-save failed:", err);
+            }
+          })();
+
+          return currentSavedWorkouts;
+        });
+      } catch (err) {
+        console.error("Auto-save setup failed:", err);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [intervals, user, workoutTitle]);
 
   const saveCurrentWorkout = async () => {
     const newWorkout = {
@@ -1276,22 +1545,18 @@ export default function App() {
     if (currentIndex > 0) {
       const prevIndex = currentIndex - 1;
       const prev = intervals[prevIndex];
-      const current = intervals[currentIndex];
-      const isSameColor = prev.color === current.color;
 
       setCurrentIndex(prevIndex);
       setTimeLeft(prev.duration);
       audioEngine.stopAll();
       audioEngine.playStart();
-      // Restart audio for the previous interval's color group
-      if (!isSameColor) {
-        const prevGroup = getGroupForInterval(colorGroups, prev.color);
-        if (prevGroup && prevGroup.mergedPlaylist.length > 0) {
-          audioEngine.playPlaylist(
-            prevGroup.mergedPlaylist,
-            prevGroup.totalDuration,
-          );
-        }
+      // Always restart audio on manual skip
+      const prevGroup = getGroupForInterval(colorGroups, prev.color);
+      if (prevGroup && prevGroup.mergedPlaylist.length > 0) {
+        audioEngine.playPlaylist(
+          prevGroup.mergedPlaylist,
+          prevGroup.totalDuration,
+        );
       }
     }
   };
@@ -1300,22 +1565,18 @@ export default function App() {
     if (currentIndex < intervals.length - 1) {
       const nextIndex = currentIndex + 1;
       const next = intervals[nextIndex];
-      const current = intervals[currentIndex];
-      const isSameColor = next.color === current.color;
 
       setCurrentIndex(nextIndex);
       setTimeLeft(next.duration);
       audioEngine.stopAll();
       audioEngine.playStart();
-      // Restart audio for the next interval's color group
-      if (!isSameColor) {
-        const nextGroup = getGroupForInterval(colorGroups, next.color);
-        if (nextGroup && nextGroup.mergedPlaylist.length > 0) {
-          audioEngine.playPlaylist(
-            nextGroup.mergedPlaylist,
-            nextGroup.totalDuration,
-          );
-        }
+      // Always restart audio on manual skip
+      const nextGroup = getGroupForInterval(colorGroups, next.color);
+      if (nextGroup && nextGroup.mergedPlaylist.length > 0) {
+        audioEngine.playPlaylist(
+          nextGroup.mergedPlaylist,
+          nextGroup.totalDuration,
+        );
       }
     } else {
       audioEngine.playWorkoutComplete();
@@ -1555,10 +1816,28 @@ export default function App() {
   };
 
   const updatePlaylistForColorGroup = (intervalColor: string, playlist: PlaylistTrack[]) => {
+    console.log("updatePlaylistForColorGroup called:", {
+      color: intervalColor,
+      playlistLength: playlist.length,
+      playlist: playlist
+    });
+
     // Update the playlist for ALL intervals with the same color
-    setIntervals(
-      intervals.map((i) => (i.color === intervalColor ? { ...i, playlist } : i)),
-    );
+    const updatedIntervals = intervals.map((i) => {
+      if (i.color === intervalColor) {
+        console.log(`Updating interval "${i.name}" (${i.id}) with ${playlist.length} tracks`);
+        return { ...i, playlist };
+      }
+      return i;
+    });
+
+    console.log("Updated intervals:", updatedIntervals.map(i => ({
+      name: i.name,
+      color: i.color,
+      playlistCount: i.playlist?.length || 0
+    })));
+
+    setIntervals(updatedIntervals);
   };
 
   const deleteInterval = (id: string) => {

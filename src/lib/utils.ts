@@ -29,8 +29,16 @@ export interface ColorGroup {
   mergedPlaylist: PlaylistTrack[];
 }
 
-export function buildColorGroups(intervals: Interval[]): ColorGroup[] {
+export function buildColorGroups(
+  intervals: Interval[],
+  audioLibrary: { id: string; name: string }[] = []
+): ColorGroup[] {
   if (intervals.length === 0) return [];
+
+  // Only filter by audio library if it's actually loaded
+  // If audioLibrary is empty, don't filter (to avoid filtering out valid tracks during initial load)
+  const shouldFilter = audioLibrary.length > 0;
+  const validAudioIds = new Set(audioLibrary.map(a => a.id));
 
   // Aggregate by color across all intervals
   const colorMap = new Map<string, ColorGroup>();
@@ -42,20 +50,26 @@ export function buildColorGroups(intervals: Interval[]): ColorGroup[] {
     if (existing) {
       existing.indices.push(i);
       existing.totalDuration += interval.duration;
-      // Merge playlists, avoiding duplicate audioIds
+      // Merge playlists, avoiding duplicate audioIds and optionally filtering out invalid tracks
       const existingIds = new Set(existing.mergedPlaylist.map(t => t.audioId));
       for (const track of interval.playlist || []) {
-        if (!existingIds.has(track.audioId)) {
+        const isValid = !shouldFilter || validAudioIds.has(track.audioId);
+        if (!existingIds.has(track.audioId) && isValid) {
           existing.mergedPlaylist.push(track);
           existingIds.add(track.audioId);
         }
       }
     } else {
+      // Filter out invalid tracks only if audio library is loaded
+      const validPlaylist = shouldFilter
+        ? (interval.playlist || []).filter(track => validAudioIds.has(track.audioId))
+        : [...(interval.playlist || [])];
+
       colorMap.set(interval.color, {
         color: interval.color,
         indices: [i],
         totalDuration: interval.duration,
-        mergedPlaylist: [...(interval.playlist || [])],
+        mergedPlaylist: validPlaylist,
       });
     }
   }
@@ -65,6 +79,14 @@ export function buildColorGroups(intervals: Interval[]): ColorGroup[] {
 
 export function getGroupForInterval(groups: ColorGroup[], intervalColor: string): ColorGroup | undefined {
   return groups.find(g => g.color === intervalColor);
+}
+
+export function getValidTracks(
+  tracks: PlaylistTrack[],
+  audioLibrary: { id: string; name: string }[]
+): PlaylistTrack[] {
+  const validAudioIds = new Set(audioLibrary.map(a => a.id));
+  return tracks.filter(track => validAudioIds.has(track.audioId));
 }
 
 export const COLORS = [

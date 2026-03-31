@@ -127,20 +127,32 @@ export async function saveOrReplaceWorkout(
 
   if (existingWorkout) {
     // Replace existing workout - keep same ID, update intervals
+    const cleanedIntervals = data.intervals.map(cleanInterval);
+    console.log("saveOrReplaceWorkout - Cleaned intervals being saved:");
+    cleanedIntervals.forEach(i => {
+      console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
+    });
+
     const libraryWorkout: SavedWorkout = {
       id: existingWorkout.id,
       title: data.workoutTitle?.trim() || "TempoTread Session",
-      intervals: data.intervals.map(cleanInterval),
+      intervals: cleanedIntervals,
     };
     await setDoc(doc(db, "users", uid, "savedWorkouts", existingWorkout.id), libraryWorkout);
     return { id: existingWorkout.id, isNew: false };
   } else {
     // Create new workout
     const newId = crypto.randomUUID();
+    const cleanedIntervals = data.intervals.map(cleanInterval);
+    console.log("saveOrReplaceWorkout - Cleaned intervals being saved (new workout):");
+    cleanedIntervals.forEach(i => {
+      console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
+    });
+
     const libraryWorkout: SavedWorkout = {
       id: newId,
       title: data.workoutTitle?.trim() || "TempoTread Session",
-      intervals: data.intervals.map(cleanInterval),
+      intervals: cleanedIntervals,
     };
     await setDoc(doc(db, "users", uid, "savedWorkouts", newId), libraryWorkout);
     return { id: newId, isNew: true };
