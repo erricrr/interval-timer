@@ -124,7 +124,7 @@ const Button = ({
     solid: "bg-accent text-bg hover:bg-accent/90 border-none",
     white: "bg-white text-bg hover:bg-white/90 border-none",
     danger:
-      "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20",
+      "bg-rose-400/10 text-rose-400 hover:bg-rose-400/20 border border-rose-400/20",
     upload:
       "bg-accent text-bg hover:bg-accent/90 border-none shadow-lg shadow-accent/20",
   };
