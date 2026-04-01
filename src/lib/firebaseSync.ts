@@ -120,19 +120,26 @@ export async function saveOrReplaceWorkout(
 ): Promise<{ id: string; isNew: boolean }> {
   const titleToSave = data.workoutTitle?.trim().toLowerCase() || "tempotread session";
 
+  const cleanedIntervals = data.intervals.map(cleanInterval);
+  console.log("saveOrReplaceWorkout - Cleaned intervals being saved:");
+  cleanedIntervals.forEach(i => {
+    console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
+  });
+
+  // Save to current workout document first
+  const currentWorkoutData: WorkoutData = {
+    workoutTitle: data.workoutTitle?.trim() || "TempoTread Session",
+    intervals: cleanedIntervals,
+  };
+  await setDoc(doc(db, "users", uid, "workouts", CURRENT_WORKOUT_ID), currentWorkoutData);
+
   // Check if a workout with the same title (case-insensitive) exists
   const existingWorkout = existingWorkouts.find(
     (w) => w.title.trim().toLowerCase() === titleToSave
   );
 
   if (existingWorkout) {
-    // Replace existing workout - keep same ID, update intervals
-    const cleanedIntervals = data.intervals.map(cleanInterval);
-    console.log("saveOrReplaceWorkout - Cleaned intervals being saved:");
-    cleanedIntervals.forEach(i => {
-      console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
-    });
-
+    // Replace existing workout in library - keep same ID, update intervals
     const libraryWorkout: SavedWorkout = {
       id: existingWorkout.id,
       title: data.workoutTitle?.trim() || "TempoTread Session",
@@ -141,14 +148,8 @@ export async function saveOrReplaceWorkout(
     await setDoc(doc(db, "users", uid, "savedWorkouts", existingWorkout.id), libraryWorkout);
     return { id: existingWorkout.id, isNew: false };
   } else {
-    // Create new workout
+    // Create new workout in library
     const newId = crypto.randomUUID();
-    const cleanedIntervals = data.intervals.map(cleanInterval);
-    console.log("saveOrReplaceWorkout - Cleaned intervals being saved (new workout):");
-    cleanedIntervals.forEach(i => {
-      console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
-    });
-
     const libraryWorkout: SavedWorkout = {
       id: newId,
       title: data.workoutTitle?.trim() || "TempoTread Session",
@@ -161,7 +162,15 @@ export async function saveOrReplaceWorkout(
 
 export async function loadWorkout(uid: string): Promise<WorkoutData | null> {
   const snap = await getDoc(doc(db, "users", uid, "workouts", CURRENT_WORKOUT_ID));
-  return snap.exists() ? (snap.data() as WorkoutData) : null;
+  if (snap.exists()) {
+    const data = snap.data() as WorkoutData;
+    console.log("loadWorkout - Raw data from Firebase:");
+    data.intervals?.forEach(i => {
+      console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
+    });
+    return data;
+  }
+  return null;
 }
 
 // Legacy functions for backwards compatibility

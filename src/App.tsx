@@ -1134,6 +1134,7 @@ export default function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [audioStoragePaths, setAudioStoragePaths] = useState<Record<string, string>>({});
+  const hasLoadedInitialData = useRef(false);
 
   // Alarm settings state
   const [alarmVolume, setAlarmVolume] = useState(0.5);
@@ -1261,6 +1262,9 @@ export default function App() {
         }
 
         setSavedWorkouts(workouts);
+
+        // Mark that initial data has been loaded - enable auto-save for future changes
+        hasLoadedInitialData.current = true;
       } catch (err) {
         console.error("Firestore failed (loadUserData):", err);
       }
@@ -1387,6 +1391,12 @@ export default function App() {
   useEffect(() => {
     if (!user) {
       console.log("Auto-save skipped: user not logged in");
+      return;
+    }
+
+    // Don't auto-save until initial data has been loaded
+    if (!hasLoadedInitialData.current) {
+      console.log("Auto-save skipped: waiting for initial data load");
       return;
     }
 
