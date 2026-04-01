@@ -2190,7 +2190,7 @@ export default function App() {
                     style={{ color: themeColor }}
                   >
                     {state === "finished"
-                      ? "Workout Complete"
+                      ? "Nice Work"
                       : currentInterval.name}
                   </h1>
                   {currentIndex < intervals.length - 1 &&
