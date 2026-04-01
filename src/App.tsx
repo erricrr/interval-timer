@@ -1187,6 +1187,8 @@ export default function App() {
   const timerRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(0);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const countdownTimelineRef = useRef<HTMLDivElement>(null);
+  const intervalRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Auth listener - properly gated data loading
   useEffect(() => {
@@ -1803,6 +1805,17 @@ export default function App() {
     halfwaySoundEnabled,
   ]);
 
+  // Auto-scroll countdown timeline to active interval
+  useEffect(() => {
+    if ((state === "running" || state === "paused") && intervalRefs.current[currentIndex]) {
+      intervalRefs.current[currentIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [currentIndex, state]);
+
   const addInterval = () => {
     const newInterval: Interval = {
       id: Math.random().toString(36).substr(2, 9),
@@ -2333,7 +2346,10 @@ export default function App() {
 
                   {/* Interval Progress Cards */}
                   <div className="w-full overflow-hidden">
-                    <div className="flex gap-2 justify-center flex-wrap">
+                    <div
+                      ref={countdownTimelineRef}
+                      className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar scroll-smooth flex-nowrap"
+                    >
                       {intervals.map((interval, index) => {
                         const isPast =
                           index < currentIndex || state === "finished";
@@ -2347,12 +2363,13 @@ export default function App() {
                         return (
                           <div
                             key={interval.id}
-                            className="flex flex-col items-center gap-1.5"
+                            ref={(el) => (intervalRefs.current[index] = el)}
+                            className="flex flex-col items-center gap-1.5 flex-shrink-0"
                           >
                             <div
                               className="h-2 rounded-full transition-all duration-300"
                               style={{
-                                width: `${Math.min(80, Math.max(40, 120 / intervals.length))}px`,
+                                width: "80px",
                                 backgroundColor: isActive
                                   ? interval.color
                                   : isPast
