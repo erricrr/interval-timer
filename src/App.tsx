@@ -893,9 +893,9 @@ const PlaylistDrawer = ({
         exit={{ x: "100%" }}
         transition={{ type: "spring", damping: 30, stiffness: 300 }}
         style={{ "--interval-color": interval.color } as React.CSSProperties}
-        className="fixed right-0 top-0 bottom-0 w-full max-w-md glass border-l border-text-subtle/10 z-[101] flex flex-col shadow-2xl"
+        className="fixed right-0 top-0 bottom-0 w-full max-w-[90vw] sm:max-w-sm md:max-w-md glass border-l border-text-subtle/10 z-[101] flex flex-col shadow-2xl"
       >
-        <div className="p-6 border-b border-text-subtle/10 flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-b border-text-subtle/10 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-black uppercase tracking-widest text-text">
               Edit Tracks
@@ -910,7 +910,7 @@ const PlaylistDrawer = ({
           <CloseButton onClose={onClose} />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 sm:space-y-8 custom-scrollbar">
           {/* Current Playlist */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
@@ -1063,7 +1063,7 @@ const PlaylistDrawer = ({
           </section>
         </div>
 
-        <div className="p-6 border-t border-text-subtle/10">
+        <div className="p-4 sm:p-6 border-t border-text-subtle/10">
           <Button
             variant="solid"
             className="w-full py-4 bg-accent text-bg font-black rounded-2xl uppercase tracking-[0.2em] hover:scale-[1.02] transition-transform"
@@ -2446,17 +2446,17 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-bg/95 backdrop-blur-xl p-4 flex flex-col items-center justify-center"
+              className="fixed inset-0 z-50 bg-bg/95 backdrop-blur-xl p-3 sm:p-4 flex flex-col items-center justify-center"
             >
-              <div className="w-full max-w-2xl flex flex-col h-full max-h-[90vh] glass p-5 rounded-[2.5rem] neo-shadow relative">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold tracking-tight">
+              <div className="w-full max-w-[calc(100vw-1.5rem)] sm:max-w-lg md:max-w-xl lg:max-w-2xl flex flex-col h-full max-h-[92vh] sm:max-h-[90vh] glass p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] neo-shadow relative">
+                <div className="flex justify-between items-center mb-4 sm:mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
                     System Settings
                   </h2>
                   <CloseButton onClose={() => setShowSettings(false)} />
                 </div>
 
-                <div className="space-y-6 overflow-y-auto pr-4 custom-scrollbar flex-1">
+                <div className="space-y-4 sm:space-y-6 overflow-y-auto pr-2 sm:pr-4 custom-scrollbar flex-1">
                   <section>
                     <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
                       <Save size={14} /> Save Current Timeline
@@ -2867,10 +2867,10 @@ export default function App() {
                   damping: 30,
                   stiffness: 300,
                 }}
-                className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
+                className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4"
               >
                 <motion.div
-                  className="glass border rounded-2xl p-6 shadow-2xl max-h-[80vh] overflow-y-auto w-full max-w-md pointer-events-auto"
+                  className="glass border rounded-2xl p-4 sm:p-6 shadow-2xl max-h-[85vh] overflow-y-auto w-full max-w-[calc(100vw-2rem)] sm:max-w-sm pointer-events-auto"
                   style={{
                     borderColor: `${intervals.find((i) => i.id === viewingNotesId)?.color || "#ffffff"}20`,
                   }}
