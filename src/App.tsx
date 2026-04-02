@@ -2909,7 +2909,7 @@ export default function App() {
                     </button>
                   </div>
                   <textarea
-                    autoFocus
+                    autoFocus={!isMobile}
                     value={
                       intervals.find((i) => i.id === viewingNotesId)?.notes ||
                       ""
@@ -2918,7 +2918,7 @@ export default function App() {
                       updateInterval(viewingNotesId, { notes: e.target.value })
                     }
                     placeholder="Add notes for this interval..."
-                    className="w-full h-32 bg-text-subtle/10 border rounded-lg p-3 text-sm text-text-muted/90 focus:outline-none resize-none placeholder:text-text-subtle/20 transition-all focus:ring-2 focus:border-transparent"
+                    className="w-full h-32 bg-text-subtle/10 border rounded-lg p-3 text-base sm:text-sm text-text-muted/90 focus:outline-none resize-none placeholder:text-text-subtle/20 transition-all focus:ring-2 focus:border-transparent"
                     style={{
                       borderColor: `${intervals.find((i) => i.id === viewingNotesId)?.color || "#ffffff"}20`,
                       ringColor: intervals.find((i) => i.id === viewingNotesId)
