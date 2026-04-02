@@ -1189,6 +1189,23 @@ export default function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Lock body scroll when notes popup is open on mobile to prevent viewport shift
+  useEffect(() => {
+    if (viewingNotesId && isMobile) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+
+      return () => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [viewingNotesId, isMobile]);
+
   // Compute color groups from intervals
   const colorGroups = useMemo(() => buildColorGroups(intervals, audioLibrary), [intervals, audioLibrary]);
 
