@@ -1181,6 +1181,14 @@ export default function App() {
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Compute color groups from intervals
   const colorGroups = useMemo(() => buildColorGroups(intervals, audioLibrary), [intervals, audioLibrary]);
 
@@ -2855,22 +2863,29 @@ export default function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: isMobile ? 0.15 : 0.2 }}
                 className="fixed inset-0 bg-text-subtle/60 backdrop-blur-sm z-[99]"
                 onClick={() => setViewingNotesId(null)}
               />
               <motion.div
-                initial={{ y: "100%", opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: "100%", opacity: 0 }}
-                transition={{
-                  type: "spring",
-                  damping: 30,
-                  stiffness: 300,
-                }}
-                className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4"
+                initial={isMobile ? { opacity: 0, scale: 0.95 } : { y: "100%", opacity: 0 }}
+                animate={isMobile ? { opacity: 1, scale: 1 } : { y: 0, opacity: 1 }}
+                exit={isMobile ? { opacity: 0, scale: 0.95 } : { y: "100%", opacity: 0 }}
+                transition={
+                  isMobile
+                    ? { duration: 0.15 }
+                    : { type: "spring", damping: 30, stiffness: 300 }
+                }
+                className={isMobile
+                  ? "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[calc(100vw-2rem)] max-w-sm"
+                  : "fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4"
+                }
               >
-                <motion.div
-                  className="glass border rounded-2xl p-4 sm:p-6 shadow-2xl max-h-[85vh] overflow-y-auto w-full max-w-[calc(100vw-2rem)] sm:max-w-sm pointer-events-auto"
+                <div
+                  className={cn(
+                    "glass border rounded-2xl p-4 sm:p-6 shadow-2xl max-h-[70vh] overflow-y-auto w-full",
+                    !isMobile && "max-w-sm pointer-events-auto"
+                  )}
                   style={{
                     borderColor: `${intervals.find((i) => i.id === viewingNotesId)?.color || "#ffffff"}20`,
                   }}
@@ -2911,7 +2926,7 @@ export default function App() {
                       ringOpacity: 0.5,
                     }}
                   />
-                </motion.div>
+                </div>
               </motion.div>
             </>
           )}
