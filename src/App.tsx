@@ -218,6 +218,80 @@ const ConfirmDialog = ({
   );
 };
 
+const GoogleIcon = () => (
+  <svg viewBox="0 0 48 48" className="w-5 h-5" fill="currentColor">
+    <path d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+  </svg>
+);
+
+interface LoginPromptDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const LoginPromptDialog = ({
+  isOpen,
+  onClose,
+}: LoginPromptDialogProps) => {
+  if (!isOpen) return null;
+
+  const handleLogin = async () => {
+    try {
+      const { signInWithPopup } = await import("firebase/auth");
+      const { auth, provider } = await import("./lib/firebase");
+      await signInWithPopup(auth, provider);
+      onClose();
+    } catch (error) {
+      console.error("Login error:", error);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[102]"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="fixed inset-0 z-[103] flex items-center justify-center pointer-events-none p-4"
+      >
+        <div className="glass border border-text-subtle/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-text mb-2">Sign in to Save</h3>
+            <p className="text-sm text-text-muted">
+              To save your workout sessions and sync across devices, please sign in with your Google account.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            <Button
+              variant="solid"
+              className="w-full py-3 flex items-center justify-center gap-2"
+              onClick={handleLogin}
+            >
+              <GoogleIcon />
+              Sign in with Google
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full py-3"
+              onClick={onClose}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
 interface SortableIntervalCardProps {
   key?: React.Key;
   interval: Interval;
@@ -1129,6 +1203,7 @@ export default function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [showNewWorkoutConfirm, setShowNewWorkoutConfirm] = useState(false);
   const [workoutToDelete, setWorkoutToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   // Firebase auth state
   const [user, setUser] = useState(auth.currentUser);
@@ -1639,6 +1714,59 @@ export default function App() {
     audioEngine.stopAll();
   };
 
+  const handleSaveWorkout = async () => {
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
+    try {
+      const titleToSave = workoutTitle?.trim() || "TempoTread Session";
+      let workoutId = currentWorkoutId;
+
+      if (currentWorkoutId) {
+        const workoutToUpdate = {
+          id: currentWorkoutId,
+          title: titleToSave,
+          intervals: intervals.map(interval => ({
+            id: interval.id,
+            name: interval.name || "",
+            duration: interval.duration || 0,
+            color: interval.color || "#F27D26",
+            ...(interval.notes !== undefined && { notes: interval.notes }),
+            ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
+            ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
+          })),
+        };
+        await saveWorkoutToLibrary(user.uid, workoutToUpdate);
+
+        setSavedWorkouts(prev => {
+          const filtered = prev.filter(w => w.id !== currentWorkoutId);
+          return [workoutToUpdate, ...filtered];
+        });
+      } else {
+        const result = await saveOrReplaceWorkout(user.uid, {
+          workoutTitle: titleToSave,
+          intervals,
+        }, savedWorkouts);
+        workoutId = result.id;
+
+        const newWorkout = { id: result.id, title: titleToSave, intervals };
+        setSavedWorkouts(prev => {
+          const filtered = prev.filter(w => w.id !== result.id);
+          return [newWorkout, ...filtered];
+        });
+        setCurrentWorkoutId(result.id);
+      }
+
+      setTimelineSaved(true);
+      setTimeout(() => setTimelineSaved(false), 2000);
+    } catch (err) {
+      console.error("Timeline SAVE failed:", err);
+      alert("Save failed: " + (err instanceof Error ? err.message : "Unknown error"));
+    }
+  };
+
   const previousInterval = () => {
     if (currentIndex > 0) {
       const prevIndex = currentIndex - 1;
@@ -2055,64 +2183,13 @@ export default function App() {
                 <Plus size={12} />
                  New Session
               </button>
-              {user && (
-                <button
-                  onClick={async () => {
-                    try {
-                      const titleToSave = workoutTitle?.trim() || "TempoTread Session";
-                      let workoutId = currentWorkoutId;
-
-                      // If we have a currentWorkoutId, update that specific workout
-                      if (currentWorkoutId) {
-                        const workoutToUpdate = {
-                          id: currentWorkoutId,
-                          title: titleToSave,
-                          intervals: intervals.map(interval => ({
-                            id: interval.id,
-                            name: interval.name || "",
-                            duration: interval.duration || 0,
-                            color: interval.color || "#F27D26",
-                            ...(interval.notes !== undefined && { notes: interval.notes }),
-                            ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
-                            ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
-                          })),
-                        };
-                        await saveWorkoutToLibrary(user.uid, workoutToUpdate);
-
-                        // Update local state
-                        setSavedWorkouts(prev => {
-                          const filtered = prev.filter(w => w.id !== currentWorkoutId);
-                          return [workoutToUpdate, ...filtered];
-                        });
-                      } else {
-                        // No currentWorkoutId, use the old logic (title-based matching)
-                        const result = await saveOrReplaceWorkout(user.uid, {
-                          workoutTitle: titleToSave,
-                          intervals,
-                        }, savedWorkouts);
-                        workoutId = result.id;
-
-                        const newWorkout = { id: result.id, title: titleToSave, intervals };
-                        setSavedWorkouts(prev => {
-                          const filtered = prev.filter(w => w.id !== result.id);
-                          return [newWorkout, ...filtered];
-                        });
-                        setCurrentWorkoutId(result.id);
-                      }
-
-                      setTimelineSaved(true);
-                      setTimeout(() => setTimelineSaved(false), 2000);
-                    } catch (err) {
-                      console.error("Timeline SAVE failed:", err);
-                      alert("Save failed: " + (err instanceof Error ? err.message : "Unknown error"));
-                    }
-                  }}
-                  className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-accent hover:bg-accent/10 transition-all border border-accent/20 text-[10px] font-bold uppercase tracking-wider"
-                >
-                  <Save size={12} />
-                  {timelineSaved ? "Saved!" : "Save"}
-                </button>
-              )}
+              <button
+                onClick={handleSaveWorkout}
+                className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-accent hover:bg-accent/10 transition-all border border-accent/20 text-[10px] font-bold uppercase tracking-wider"
+              >
+                <Save size={12} />
+                {timelineSaved ? "Saved!" : "Save"}
+              </button>
             </div>
           </div>
 
@@ -2577,63 +2654,7 @@ export default function App() {
                       <Save size={14} /> Save Current Timeline
                     </h3>
                     <button
-                      onClick={async () => {
-                        try {
-                          const titleToSave = workoutTitle?.trim() || "TempoTread Session";
-                          let workoutId = currentWorkoutId;
-
-                          // If we have a currentWorkoutId, update that specific workout
-                          if (currentWorkoutId) {
-                            const workoutToUpdate = {
-                              id: currentWorkoutId,
-                              title: titleToSave,
-                              intervals: intervals.map(interval => ({
-                                id: interval.id,
-                                name: interval.name || "",
-                                duration: interval.duration || 0,
-                                color: interval.color || "#F27D26",
-                                ...(interval.notes !== undefined && { notes: interval.notes }),
-                                ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
-                                ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
-                              })),
-                            };
-                            await saveWorkoutToLibrary(user.uid, workoutToUpdate);
-
-                            // Update local state
-                            setSavedWorkouts(prev => {
-                              const filtered = prev.filter(w => w.id !== currentWorkoutId);
-                              return [workoutToUpdate, ...filtered];
-                            });
-                          } else {
-                            // No currentWorkoutId, use the old logic (title-based matching)
-                            const result = await saveOrReplaceWorkout(user.uid, {
-                              workoutTitle: titleToSave,
-                              intervals,
-                            }, savedWorkouts);
-                            workoutId = result.id;
-
-                            const newWorkout = { id: result.id, title: titleToSave, intervals };
-                            setSavedWorkouts(prev => {
-                              const filtered = prev.filter(w => w.id !== result.id);
-                              return [newWorkout, ...filtered];
-                            });
-                            setCurrentWorkoutId(result.id);
-                          }
-
-                          // Show brief success feedback
-                          const btn = document.activeElement as HTMLButtonElement;
-                          if (btn) {
-                            const originalText = btn.innerHTML;
-                            btn.innerHTML = `<span class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>Saved!</span>`;
-                            setTimeout(() => {
-                              btn.innerHTML = originalText;
-                            }, 1500);
-                          }
-                        } catch (err) {
-                          console.error("Save failed:", err);
-                          alert("Save failed: " + (err instanceof Error ? err.message : "Unknown error"));
-                        }
-                      }}
+                      onClick={handleSaveWorkout}
                       className="w-full py-4 bg-accent text-bg font-black rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 shadow-lg shadow-accent/20 mx-1"
                     >
                       <Save size={20} />
@@ -3128,6 +3149,12 @@ export default function App() {
           confirmLabel="Clear & Start New"
           onConfirm={clearWorkout}
           onCancel={() => setShowNewWorkoutConfirm(false)}
+        />
+
+        {/* Login Prompt Dialog */}
+        <LoginPromptDialog
+          isOpen={showLoginPrompt}
+          onClose={() => setShowLoginPrompt(false)}
         />
       </div>
     </motion.div>

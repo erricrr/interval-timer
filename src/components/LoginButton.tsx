@@ -85,7 +85,7 @@ export function LoginButton({ className }: LoginButtonProps) {
     );
   }
 
-  // Show Google icon + Log in text when not logged in
+  // Show Google icon + Sign in text when not logged in
   return (
     <button
       onClick={handleLogin}
@@ -93,7 +93,7 @@ export function LoginButton({ className }: LoginButtonProps) {
       title="Sign in with Google"
     >
       <GoogleIcon />
-      <span>Log in</span>
+      <span>Sign in</span>
     </button>
   );
 }
