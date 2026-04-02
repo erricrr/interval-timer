@@ -27,6 +27,11 @@ class AudioEngine {
     groupStartTime: number;
   } | null = null;
 
+  // Audio routing nodes for clean mixing
+  private musicGain: GainNode | null = null;
+  private beepsGain: GainNode | null = null;
+  private masterGain: GainNode | null = null;
+
   // Alarm settings
   private alarmVolume: number = 0.5;
   private alarmPreset: "digital" | "chime" | "bell" | "buzzer" | "custom" = "digital";
@@ -37,6 +42,21 @@ class AudioEngine {
     if (!this.ctx) {
       this.ctx = new (window.AudioContext ||
         (window as any).webkitAudioContext)();
+
+      // Create audio routing nodes for clean mixing
+      this.masterGain = this.ctx.createGain();
+      this.musicGain = this.ctx.createGain();
+      this.beepsGain = this.ctx.createGain();
+
+      // Set default volumes
+      this.masterGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+      this.musicGain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+      this.beepsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+
+      // Connect to destination
+      this.musicGain.connect(this.masterGain);
+      this.beepsGain.connect(this.masterGain);
+      this.masterGain.connect(this.ctx.destination);
     }
     if (this.ctx.state === "suspended") {
       this.ctx.resume();
@@ -177,18 +197,17 @@ class AudioEngine {
     offset: number = 0,
   ): AudioBufferSourceNode | null {
     this.init();
-    if (!this.ctx) return null;
+    if (!this.ctx || !this.musicGain) return null;
 
     const source = this.ctx.createBufferSource();
-    const gain = this.ctx.createGain();
-
     source.buffer = buffer;
-    gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
 
-    source.connect(gain);
-    gain.connect(this.ctx.destination);
+    // Route through musicGain for clean mixing with beeps
+    source.connect(this.musicGain);
 
-    source.start(0, offset);
+    // Pre-schedule slightly ahead for smoother playback
+    const when = this.ctx.currentTime + 0.01;
+    source.start(when, offset);
 
     const item = { source, startTime: this.ctx.currentTime, offset, buffer };
     this.currentSources.push(item);
@@ -214,25 +233,29 @@ class AudioEngine {
     volume: number,
   ) {
     this.init();
-    if (!this.ctx) return;
+    if (!this.ctx || !this.beepsGain) return;
 
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
     osc.type = type;
-    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
-    gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+    // Pre-schedule slightly ahead for smoother playback
+    const when = this.ctx.currentTime + 0.01;
+    osc.frequency.setValueAtTime(freq, when);
+
+    gain.gain.setValueAtTime(volume, when);
     gain.gain.exponentialRampToValueAtTime(
       0.0001,
-      this.ctx.currentTime + duration,
+      when + duration,
     );
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    // Route through beepsGain for clean mixing with music
+    gain.connect(this.beepsGain);
 
-    osc.start();
-    osc.stop(this.ctx.currentTime + duration);
+    osc.start(when);
+    osc.stop(when + duration);
   }
 
   private playDigitalBeep(freq: number, duration: number, volume: number) {
@@ -241,7 +264,10 @@ class AudioEngine {
 
   private playChime(freq: number, duration: number, volume: number) {
     this.init();
-    if (!this.ctx) return;
+    if (!this.ctx || !this.beepsGain) return;
+
+    // Pre-schedule slightly ahead for smoother playback
+    const when = this.ctx.currentTime + 0.01;
 
     // Create a bell-like sound with multiple harmonics
     const harmonics = [1, 2, 3, 4.2];
@@ -250,52 +276,60 @@ class AudioEngine {
       const gain = this.ctx!.createGain();
 
       osc.type = "sine";
-      osc.frequency.setValueAtTime(freq * harmonic, this.ctx!.currentTime);
+      osc.frequency.setValueAtTime(freq * harmonic, when);
 
       const harmonicVolume = volume * Math.pow(0.5, i);
-      gain.gain.setValueAtTime(0, this.ctx!.currentTime);
-      gain.gain.linearRampToValueAtTime(harmonicVolume, this.ctx!.currentTime + 0.01);
+      gain.gain.setValueAtTime(0, when);
+      gain.gain.linearRampToValueAtTime(harmonicVolume, when + 0.01);
       gain.gain.exponentialRampToValueAtTime(
         0.0001,
-        this.ctx!.currentTime + duration * (1 + i * 0.3),
+        when + duration * (1 + i * 0.3),
       );
 
       osc.connect(gain);
-      gain.connect(this.ctx!.destination);
+      // Route through beepsGain for clean mixing with music
+      gain.connect(this.beepsGain!);
 
-      osc.start();
-      osc.stop(this.ctx!.currentTime + duration * (1 + i * 0.3));
+      osc.start(when);
+      osc.stop(when + duration * (1 + i * 0.3));
     });
   }
 
   private playBell(freq: number, duration: number, volume: number) {
     this.init();
-    if (!this.ctx) return;
+    if (!this.ctx || !this.beepsGain) return;
+
+    // Pre-schedule slightly ahead for smoother playback
+    const when = this.ctx.currentTime + 0.01;
 
     // Bell sound with strong attack and long decay
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
     osc.type = "triangle";
-    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+    osc.frequency.setValueAtTime(freq, when);
 
-    gain.gain.setValueAtTime(0, this.ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(volume, this.ctx.currentTime + 0.02);
+    gain.gain.setValueAtTime(0, when);
+    gain.gain.linearRampToValueAtTime(volume, when + 0.02);
     gain.gain.exponentialRampToValueAtTime(
       0.0001,
-      this.ctx.currentTime + duration * 1.5,
+      when + duration * 1.5,
     );
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    // Route through beepsGain for clean mixing with music
+    gain.connect(this.beepsGain);
 
-    osc.start();
-    osc.stop(this.ctx.currentTime + duration * 1.5);
+    osc.start(when);
+    osc.stop(when + duration * 1.5);
   }
 
   private playBuzzer(freq: number, duration: number, volume: number) {
     this.init();
-    if (!this.ctx) return;
+    if (!this.ctx || !this.beepsGain) return;
+
+    // Pre-schedule slightly ahead for smoother playback
+    const when = this.ctx.currentTime + 0.01;
 
     // Buzzer with modulation
     const osc = this.ctx.createOscillator();
@@ -304,28 +338,29 @@ class AudioEngine {
     const lfoGain = this.ctx.createGain();
 
     osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+    osc.frequency.setValueAtTime(freq, when);
 
     lfo.type = "square";
-    lfo.frequency.setValueAtTime(20, this.ctx.currentTime);
-    lfoGain.gain.setValueAtTime(freq * 0.1, this.ctx.currentTime);
+    lfo.frequency.setValueAtTime(20, when);
+    lfoGain.gain.setValueAtTime(freq * 0.1, when);
 
     lfo.connect(lfoGain);
     lfoGain.connect(osc.frequency);
 
-    gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+    gain.gain.setValueAtTime(volume, when);
     gain.gain.exponentialRampToValueAtTime(
       0.0001,
-      this.ctx.currentTime + duration,
+      when + duration,
     );
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    // Route through beepsGain for clean mixing with music
+    gain.connect(this.beepsGain);
 
-    lfo.start();
-    osc.start();
-    osc.stop(this.ctx.currentTime + duration);
-    lfo.stop(this.ctx.currentTime + duration);
+    lfo.start(when);
+    osc.start(when);
+    osc.stop(when + duration);
+    lfo.stop(when + duration);
   }
 
   private playAlarmSound(freq: number, duration: number, isDouble: boolean = false) {
@@ -367,22 +402,26 @@ class AudioEngine {
   }
 
   private playCustomAlarm() {
-    if (!this.ctx || !this.customAlarmBuffer) return;
+    if (!this.ctx || !this.customAlarmBuffer || !this.beepsGain) return;
+
+    // Pre-schedule slightly ahead for smoother playback
+    const when = this.ctx.currentTime + 0.01;
 
     const source = this.ctx.createBufferSource();
     const gain = this.ctx.createGain();
 
     source.buffer = this.customAlarmBuffer;
-    gain.gain.setValueAtTime(this.alarmVolume, this.ctx.currentTime);
+    gain.gain.setValueAtTime(this.alarmVolume, when);
     gain.gain.exponentialRampToValueAtTime(
       0.0001,
-      this.ctx.currentTime + this.customAlarmBuffer.duration,
+      when + this.customAlarmBuffer.duration,
     );
 
     source.connect(gain);
-    gain.connect(this.ctx.destination);
+    // Route through beepsGain for clean mixing with music
+    gain.connect(this.beepsGain);
 
-    source.start();
+    source.start(when);
   }
 
   playStart() {
@@ -399,10 +438,11 @@ class AudioEngine {
 
   playWorkoutComplete() {
     this.init();
-    if (!this.ctx) return;
+    if (!this.ctx || !this.beepsGain) return;
 
     const volume = this.alarmVolume;
-    const now = this.ctx.currentTime;
+    // Pre-schedule slightly ahead for smoother playback
+    const when = this.ctx.currentTime + 0.01;
 
     // Victory fanfare: ascending arpeggio with final chord
     const notes = [
@@ -418,17 +458,18 @@ class AudioEngine {
       const gain = this.ctx!.createGain();
 
       osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, now + time);
+      osc.frequency.setValueAtTime(freq, when + time);
 
-      gain.gain.setValueAtTime(0, now + time);
-      gain.gain.linearRampToValueAtTime(volume * 0.6, now + time + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + time + duration);
+      gain.gain.setValueAtTime(0, when + time);
+      gain.gain.linearRampToValueAtTime(volume * 0.6, when + time + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, when + time + duration);
 
       osc.connect(gain);
-      gain.connect(this.ctx!.destination);
+      // Route through beepsGain for clean mixing with music
+      gain.connect(this.beepsGain!);
 
-      osc.start(now + time);
-      osc.stop(now + time + duration);
+      osc.start(when + time);
+      osc.stop(when + time + duration);
     });
 
     // Add harmonics for richness on final note
@@ -438,18 +479,19 @@ class AudioEngine {
       const gain = this.ctx!.createGain();
 
       osc.type = "sine";
-      osc.frequency.setValueAtTime(1046.50 * harmonic, now + 0.45);
+      osc.frequency.setValueAtTime(1046.50 * harmonic, when + 0.45);
 
       const harmonicVolume = volume * 0.3 * Math.pow(0.5, i);
-      gain.gain.setValueAtTime(0, now + 0.45);
-      gain.gain.linearRampToValueAtTime(harmonicVolume, now + 0.47);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+      gain.gain.setValueAtTime(0, when + 0.45);
+      gain.gain.linearRampToValueAtTime(harmonicVolume, when + 0.47);
+      gain.gain.exponentialRampToValueAtTime(0.0001, when + 1.2);
 
       osc.connect(gain);
-      gain.connect(this.ctx!.destination);
+      // Route through beepsGain for clean mixing with music
+      gain.connect(this.beepsGain!);
 
-      osc.start(now + 0.45);
-      osc.stop(now + 1.2);
+      osc.start(when + 0.45);
+      osc.stop(when + 1.2);
     });
   }
 
