@@ -1229,7 +1229,7 @@ export default function App() {
 
         setSavedWorkouts(workouts);
 
-        // Mark that initial data has been loaded - enable auto-save for future changes
+        // Mark that initial data has been loaded
         hasLoadedInitialData.current = true;
       } catch (err) {
         console.error("Firestore failed (loadUserData):", err);
@@ -1359,97 +1359,6 @@ export default function App() {
     audioEngine.setAlarmPreset(alarmPreset);
     audioEngine.setMusicMuted(musicMuted);
   }, [alarmVolume, alarmPreset, customAlarmName, halfwaySoundEnabled, musicMuted]);
-
-  // Auto-save intervals when they change (debounced)
-  useEffect(() => {
-    if (!user) {
-      console.log("Auto-save skipped: user not logged in");
-      return;
-    }
-
-    // Don't auto-save until initial data has been loaded
-    if (!hasLoadedInitialData.current) {
-      console.log("Auto-save skipped: waiting for initial data load");
-      return;
-    }
-
-    console.log("Auto-save scheduled for intervals:", intervals.map(i => ({
-      name: i.name,
-      color: i.color,
-      playlistCount: i.playlist?.length || 0
-    })));
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        const titleToSave = workoutTitle?.trim() || "TempoTread Session";
-        console.log("Auto-saving workout:", titleToSave);
-        console.log("Intervals to save with playlists:");
-        intervals.forEach(i => {
-          console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
-        });
-
-        // Get current savedWorkouts to avoid stale closure
-        setSavedWorkouts(currentSavedWorkouts => {
-          // Run save async but don't block state update
-          (async () => {
-            try {
-              let workoutId = currentWorkoutId;
-
-              // If we have a currentWorkoutId, update that specific workout
-              if (currentWorkoutId) {
-                const workoutToUpdate = {
-                  id: currentWorkoutId,
-                  title: titleToSave,
-                  intervals: intervals.map(interval => ({
-                    id: interval.id,
-                    name: interval.name || "",
-                    duration: interval.duration || 0,
-                    color: interval.color || "#F27D26",
-                    ...(interval.notes !== undefined && { notes: interval.notes }),
-                    ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
-                    ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
-                  })),
-                };
-                await saveWorkoutToLibrary(user.uid, workoutToUpdate);
-
-                console.log("Auto-save completed, updated workout ID:", currentWorkoutId);
-
-                setSavedWorkouts(prev => {
-                  const filtered = prev.filter(w => w.id !== currentWorkoutId);
-                  return [workoutToUpdate, ...filtered];
-                });
-              } else {
-                // No currentWorkoutId, use the old logic (title-based matching)
-                const result = await saveOrReplaceWorkout(user.uid, {
-                  workoutTitle: titleToSave,
-                  intervals,
-                }, currentSavedWorkouts);
-
-                console.log("Auto-save completed, workout ID:", result.id);
-
-                const newWorkout = { id: result.id, title: titleToSave, intervals };
-                setSavedWorkouts(prev => {
-                  const filtered = prev.filter(w => w.id !== result.id);
-                  return [newWorkout, ...filtered];
-                });
-
-                // Set the currentWorkoutId for future saves
-                setCurrentWorkoutId(result.id);
-              }
-            } catch (err) {
-              console.error("Auto-save failed:", err);
-            }
-          })();
-
-          return currentSavedWorkouts;
-        });
-      } catch (err) {
-        console.error("Auto-save setup failed:", err);
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [intervals, user, workoutTitle, currentWorkoutId]);
 
   const saveCurrentWorkout = async () => {
     const newWorkout = {
@@ -2816,48 +2725,6 @@ export default function App() {
                 <div className="pt-4 border-t border-text-subtle/10">
                   <button
                     onClick={async () => {
-                      const titleToSave = workoutTitle?.trim() || "TempoTread Session";
-                      let workoutId = currentWorkoutId;
-
-                      // If we have a currentWorkoutId, update that specific workout
-                      if (currentWorkoutId) {
-                        const workoutToUpdate = {
-                          id: currentWorkoutId,
-                          title: titleToSave,
-                          intervals: intervals.map(interval => ({
-                            id: interval.id,
-                            name: interval.name || "",
-                            duration: interval.duration || 0,
-                            color: interval.color || "#F27D26",
-                            ...(interval.notes !== undefined && { notes: interval.notes }),
-                            ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
-                            ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
-                          })),
-                        };
-                        await saveWorkoutToLibrary(user.uid, workoutToUpdate);
-
-                        // Update local state
-                        setSavedWorkouts(prev => {
-                          const filtered = prev.filter(w => w.id !== currentWorkoutId);
-                          return [workoutToUpdate, ...filtered];
-                        });
-                      } else {
-                        // No currentWorkoutId, use the old logic (title-based matching)
-                        const result = await saveOrReplaceWorkout(user.uid, {
-                          workoutTitle: titleToSave,
-                          intervals,
-                        }, savedWorkouts);
-                        workoutId = result.id;
-
-                        const newWorkout = { id: result.id, title: titleToSave, intervals };
-                        setSavedWorkouts(prev => {
-                          const filtered = prev.filter(w => w.id !== result.id);
-                          return [newWorkout, ...filtered];
-                        });
-                        setCurrentWorkoutId(result.id);
-                      }
-
-                      // Save alarm settings separately
                       await saveSettings(user.uid, {
                         alarmVolume,
                         alarmPreset,
