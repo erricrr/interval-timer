@@ -22,6 +22,7 @@ export interface Settings {
   customAlarmName: string;
   customAlarmStoragePath: string | null; // path in Storage, not a URL
   halfwaySoundEnabled: boolean;
+  musicMuted?: boolean;
 }
 
 export interface AudioLibraryEntry {

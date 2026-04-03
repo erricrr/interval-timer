@@ -38,6 +38,9 @@ class AudioEngine {
   private customAlarmBuffer: AudioBuffer | null = null;
   private customAlarmName: string = "";
 
+  // Music mute state
+  private musicMuted: boolean = false;
+
   private init() {
     if (!this.ctx) {
       this.ctx = new (window.AudioContext ||
@@ -50,7 +53,7 @@ class AudioEngine {
 
       // Set default volumes
       this.masterGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
-      this.musicGain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+      this.musicGain.gain.setValueAtTime(this.musicMuted ? 0 : 0.5, this.ctx.currentTime);
       this.beepsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
       // Connect to destination
@@ -155,6 +158,17 @@ class AudioEngine {
     if (settings.customAlarmName !== undefined) {
       this.customAlarmName = settings.customAlarmName;
     }
+  }
+
+  setMusicMuted(muted: boolean) {
+    this.musicMuted = muted;
+    if (this.ctx && this.musicGain) {
+      this.musicGain.gain.setValueAtTime(muted ? 0 : 0.5, this.ctx.currentTime);
+    }
+  }
+
+  isMusicMuted(): boolean {
+    return this.musicMuted;
   }
 
   stopAll() {
@@ -634,7 +648,7 @@ class AudioEngine {
   }
 
   getCurrentSongInfo() {
-    if (!this.playlistState || this.playlistState.isPaused) return null;
+    if (!this.playlistState) return null;
 
     const track = this.playlistState.playlist[this.playlistState.currentIndex];
     const data = this.customBuffers.get(track.audioId);
@@ -642,7 +656,8 @@ class AudioEngine {
     if (!data) return null;
 
     let currentTime = this.playlistState.currentOffset;
-    if (this.currentSources.length > 0 && this.ctx) {
+    // Only add elapsed time if not paused
+    if (!this.playlistState.isPaused && this.currentSources.length > 0 && this.ctx) {
       const active = this.currentSources[0];
       currentTime += this.ctx.currentTime - active.startTime;
     }

@@ -29,6 +29,7 @@ import {
   MoreVertical,
   Trash2,
   Volume2,
+  VolumeX,
   ChevronLeft,
   ChevronRight,
   Bell,
@@ -38,6 +39,7 @@ import {
 import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup, PlaylistTrack } from "./lib/utils";
 import { audioEngine } from "./lib/audio";
 import { LoginButton } from "./components/LoginButton";
+import { Modal, ConfirmModal, LoginModal } from "./components/Modal";
 import { auth, onAuthStateChanged } from "./lib/firebase";
 import {
   saveSettings,
@@ -151,144 +153,6 @@ const Button = ({
     >
       {children}
     </button>
-  );
-};
-
-interface ConfirmDialogProps {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-const ConfirmDialog = ({
-  isOpen,
-  title,
-  message,
-  confirmLabel = "Delete",
-  cancelLabel = "Cancel",
-  onConfirm,
-  onCancel,
-}: ConfirmDialogProps) => {
-  if (!isOpen) return null;
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[102]"
-        onClick={onCancel}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="fixed inset-0 z-[103] flex items-center justify-center pointer-events-none p-4"
-      >
-        <div className="glass border border-text-subtle/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
-          <div className="mb-4">
-            <h3 className="text-lg font-bold text-text mb-2">{title}</h3>
-            <p className="text-sm text-text-muted">{message}</p>
-          </div>
-          <div className="flex gap-3">
-            <Button
-              variant="secondary"
-              className="flex-1 py-3"
-              onClick={onCancel}
-            >
-              {cancelLabel}
-            </Button>
-            <Button
-              variant="danger"
-              className="flex-1 py-3"
-              onClick={onConfirm}
-            >
-              {confirmLabel}
-            </Button>
-          </div>
-        </div>
-      </motion.div>
-    </AnimatePresence>
-  );
-};
-
-const GoogleIcon = () => (
-  <svg viewBox="0 0 48 48" className="w-5 h-5" fill="currentColor">
-    <path d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
-  </svg>
-);
-
-interface LoginPromptDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-const LoginPromptDialog = ({
-  isOpen,
-  onClose,
-}: LoginPromptDialogProps) => {
-  if (!isOpen) return null;
-
-  const handleLogin = async () => {
-    try {
-      const { signInWithPopup } = await import("firebase/auth");
-      const { auth, provider } = await import("./lib/firebase");
-      await signInWithPopup(auth, provider);
-      onClose();
-    } catch (error) {
-      console.error("Login error:", error);
-    }
-  };
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[102]"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="fixed inset-0 z-[103] flex items-center justify-center pointer-events-none p-4"
-      >
-        <div className="glass border border-text-subtle/10 rounded-2xl p-6 max-w-sm w-full pointer-events-auto shadow-2xl">
-          <div className="mb-6">
-            <h3 className="text-lg font-bold text-text mb-2">Sign in to Save</h3>
-            <p className="text-sm text-text-muted">
-              To save your workout sessions and sync across devices, please sign in with your Google account.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3">
-            <Button
-              variant="solid"
-              className="w-full py-3 flex items-center justify-center gap-2"
-              onClick={handleLogin}
-            >
-              <GoogleIcon />
-              Sign in with Google
-            </Button>
-            <Button
-              variant="secondary"
-              className="w-full py-3"
-              onClick={onClose}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </motion.div>
-    </AnimatePresence>
   );
 };
 
@@ -952,191 +816,183 @@ const PlaylistDrawer = ({
     return name.replace(/\.[^/.]+$/, "");
   };
 
+  const titleContent = (
+    <div>
+      <h2 className="text-xl font-black uppercase tracking-widest text-text">
+        Edit Tracks
+      </h2>
+      <p className="text-[10px] font-mono text-text-muted uppercase tracking-widest mt-1">
+        Interval:{" "}
+        <span style={{ color: interval.color }}>
+          {interval.name || "Untitled"}
+        </span>
+      </p>
+    </div>
+  );
+
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ x: "100%" }}
-        animate={{ x: 0 }}
-        exit={{ x: "100%" }}
-        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        variant="drawer"
+        title={titleContent}
+        className="max-w-[90vw] sm:max-w-sm md:max-w-md"
+        contentClassName="p-4 sm:p-6 space-y-6 sm:space-y-8 custom-scrollbar"
         style={{ "--interval-color": interval.color } as React.CSSProperties}
-        className="fixed right-0 top-0 bottom-0 w-full max-w-[90vw] sm:max-w-sm md:max-w-md glass border-l border-text-subtle/10 z-[101] flex flex-col shadow-2xl"
       >
-        <div className="p-4 sm:p-6 border-b border-text-subtle/10 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-black uppercase tracking-widest text-text">
-              Edit Tracks
-            </h2>
-            <p className="text-[10px] font-mono text-text-muted uppercase tracking-widest mt-1">
-              Interval:{" "}
-              <span style={{ color: interval.color }}>
-                {interval.name || "Untitled"}
-              </span>
-            </p>
+        {/* Current Playlist */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
+              Current Tracks
+            </h3>
+            <span className="text-[10px] font-mono text-text-subtle">
+              {mergedPlaylist.length} Total
+            </span>
           </div>
-          <CloseButton onClose={onClose} />
-        </div>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 sm:space-y-8 custom-scrollbar">
-          {/* Current Playlist */}
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
-                Current Tracks
-              </h3>
-              <span className="text-[10px] font-mono text-text-subtle">
-                {mergedPlaylist.length} Total
-              </span>
-            </div>
-
-            <Reorder.Group
-              axis="y"
-              values={mergedPlaylist}
-              onReorder={(newPlaylist) => onUpdatePlaylist(newPlaylist)}
-              className="space-y-2"
-            >
-              {mergedPlaylist.length === 0 ? (
-                <div className="p-8 border-2 border-dashed border-text-subtle/10 rounded-2xl flex flex-col items-center justify-center text-center gap-3">
-                  <Music size={24} className="text-text-subtle/30" />
-                  <p className="text-xs text-text-subtle/50 italic">
-                    No songs in playlist
-                  </p>
-                </div>
-              ) : (
-                mergedPlaylist.map((track) => {
-                  const audio = audioLibrary.find(
-                    (a) => a.id === track.audioId,
-                  );
-                  return (
-                    <Reorder.Item
-                      key={track.instanceId}
-                      value={track}
-                      className="glass p-3 rounded-xl flex items-center gap-3 group/item border border-text-subtle/10 hover:border-text-subtle/20 transition-colors"
-                    >
-                      <div className="text-text-subtle group-hover/item:text-text-muted transition-colors cursor-grab active:cursor-grabbing">
-                        <GripVertical size={16} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-text/80 truncate">
-                          {formatAudioName(audio!.name)}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const nextPlaylist = mergedPlaylist.filter(
-                            (t) => t.instanceId !== track.instanceId,
-                          );
-                          onUpdatePlaylist(nextPlaylist);
-                        }}
-                        className="p-1.5 text-text-subtle hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
-                        aria-label="Remove track"
-                      >
-                        <MinusCircle size={14} />
-                      </button>
-                    </Reorder.Item>
-                  );
-                })
-              )}
-            </Reorder.Group>
-          </section>
-
-          {/* Add from Library */}
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
-                Library
-              </h3>
-              <Button
-                variant="upload"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                className="h-8 px-3 text-xs font-bold uppercase tracking-wider"
-                disabled={isUploading}
-              >
-                {isUploading ? (
-                  <>
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{
-                        duration: 1,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }}
-                      className="w-4 h-4 border-2 border-bg/30 border-t-bg rounded-full"
-                    />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload size={14} /> Upload New
-                  </>
-                )}
-              </Button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={onFileUpload}
-                multiple
-                accept=".mp3,.wav,.ogg,.oga,.ogv,audio/mpeg,audio/wav,audio/x-wav,audio/ogg"
-                className="hidden"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-2">
-              {audioLibrary.length === 0 ? (
-                <p className="text-[10px] text-text-subtle/50 italic text-center py-4">
-                  No songs in library
+          <Reorder.Group
+            axis="y"
+            values={mergedPlaylist}
+            onReorder={(newPlaylist) => onUpdatePlaylist(newPlaylist)}
+            className="space-y-2"
+          >
+            {mergedPlaylist.length === 0 ? (
+              <div className="p-8 border-2 border-dashed border-text-subtle/10 rounded-2xl flex flex-col items-center justify-center text-center gap-3">
+                <Music size={24} className="text-text-subtle/30" />
+                <p className="text-xs text-text-subtle/50 italic">
+                  No songs in playlist
                 </p>
-              ) : (
-                audioLibrary.map((audio) => (
-                  <div key={audio.id} className="flex items-center gap-1">
-                    {/* Main clickable area - adds to playlist */}
+              </div>
+            ) : (
+              mergedPlaylist.map((track) => {
+                const audio = audioLibrary.find(
+                  (a) => a.id === track.audioId,
+                );
+                return (
+                  <Reorder.Item
+                    key={track.instanceId}
+                    value={track}
+                    className="glass p-3 rounded-xl flex items-center gap-3 group/item border border-text-subtle/10 hover:border-text-subtle/20 transition-colors"
+                  >
+                    <div className="text-text-subtle group-hover/item:text-text-muted transition-colors cursor-grab active:cursor-grabbing">
+                      <GripVertical size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-text/80 truncate">
+                        {formatAudioName(audio!.name)}
+                      </p>
+                    </div>
                     <button
-                      onClick={() =>
-                        onUpdatePlaylist([
-                          ...mergedPlaylist,
-                          {
-                            instanceId: Math.random()
-                              .toString(36)
-                              .substr(2, 9),
-                            audioId: audio.id,
-                          },
-                        ])
-                      }
-                      className="flex-1 flex items-center gap-3 p-3 rounded-xl bg-text-subtle/5 hover:bg-text-subtle/10 border border-transparent hover:border-text-subtle/10 transition-all text-left overflow-hidden min-w-0"
+                      onClick={() => {
+                        const nextPlaylist = mergedPlaylist.filter(
+                          (t) => t.instanceId !== track.instanceId,
+                        );
+                        onUpdatePlaylist(nextPlaylist);
+                      }}
+                      className="p-1.5 text-text-subtle hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                      aria-label="Remove track"
                     >
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-accent/10 text-accent shrink-0">
-                        <Music size={14} />
-                      </div>
-                      <span className="flex-1 text-xs text-text-muted truncate min-w-0">
-                        {formatAudioName(audio.name)}
-                      </span>
-                      <div className="w-8 h-8 flex items-center justify-center text-text-subtle hover:text-[var(--interval-color)] transition-colors shrink-0">
-                        <Plus size={16} />
-                      </div>
+                      <MinusCircle size={14} />
                     </button>
-                    {/* Separate delete button */}
-                    <button
-                      onClick={() => setAudioToDelete({ id: audio.id, name: audio.name })}
-                      className="p-3 rounded-xl text-text-subtle hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                      title="Remove from library"
-                    >
-                      <MinusCircle size={16} />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        </div>
+                  </Reorder.Item>
+                );
+              })
+            )}
+          </Reorder.Group>
+        </section>
 
+        {/* Add from Library */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
+              Library
+            </h3>
+            <Button
+              variant="upload"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-8 px-3 text-xs font-bold uppercase tracking-wider"
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="w-4 h-4 border-2 border-bg/30 border-t-bg rounded-full"
+                  />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload size={14} /> Upload New
+                </>
+              )}
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={onFileUpload}
+              multiple
+              accept=".mp3,.wav,.ogg,.oga,.ogv,audio/mpeg,audio/wav,audio/x-wav,audio/ogg"
+              className="hidden"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-2">
+            {audioLibrary.length === 0 ? (
+              <p className="text-[10px] text-text-subtle/50 italic text-center py-4">
+                No songs in library
+              </p>
+            ) : (
+              audioLibrary.map((audio) => (
+                <div key={audio.id} className="flex items-center gap-1">
+                  {/* Main clickable area - adds to playlist */}
+                  <button
+                    onClick={() =>
+                      onUpdatePlaylist([
+                        ...mergedPlaylist,
+                        {
+                          instanceId: Math.random()
+                            .toString(36)
+                            .substr(2, 9),
+                          audioId: audio.id,
+                        },
+                      ])
+                    }
+                    className="flex-1 flex items-center gap-3 p-3 rounded-xl bg-text-subtle/5 hover:bg-text-subtle/10 border border-transparent hover:border-text-subtle/10 transition-all text-left overflow-hidden min-w-0"
+                  >
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-accent/10 text-accent shrink-0">
+                      <Music size={14} />
+                    </div>
+                    <span className="flex-1 text-xs text-text-muted truncate min-w-0">
+                      {formatAudioName(audio.name)}
+                    </span>
+                    <div className="w-8 h-8 flex items-center justify-center text-text-subtle hover:text-[var(--interval-color)] transition-colors shrink-0">
+                      <Plus size={16} />
+                    </div>
+                  </button>
+                  {/* Separate delete button */}
+                  <button
+                    onClick={() => setAudioToDelete({ id: audio.id, name: audio.name })}
+                    className="p-3 rounded-xl text-text-subtle hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                    title="Remove from library"
+                  >
+                    <MinusCircle size={16} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* Done Button */}
         <div className="p-4 sm:p-6 border-t border-text-subtle/10">
           <Button
             variant="solid"
@@ -1149,21 +1005,22 @@ const PlaylistDrawer = ({
             Done
           </Button>
         </div>
+      </Modal>
 
-        {/* Delete Audio Confirmation */}
-        <ConfirmDialog
-          isOpen={audioToDelete !== null}
-          title="Delete Audio Track?"
-          message={`Are you sure you want to delete "${audioToDelete ? formatAudioName(audioToDelete.name) : ''}"? This will also remove it from any intervals using this track.`}
-          onConfirm={() => {
-            if (audioToDelete) {
-              onRemoveAudio(audioToDelete.id);
-              setAudioToDelete(null);
-            }
-          }}
-          onCancel={() => setAudioToDelete(null)}
-        />
-      </motion.div>
+      {/* Delete Audio Confirmation */}
+      <ConfirmModal
+        isOpen={audioToDelete !== null}
+        onClose={() => setAudioToDelete(null)}
+        title="Delete Audio Track?"
+        message={`Are you sure you want to delete "${audioToDelete ? formatAudioName(audioToDelete.name) : ''}"? This will also remove it from any intervals using this track.`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (audioToDelete) {
+            onRemoveAudio(audioToDelete.id);
+          }
+        }}
+        confirmVariant="danger"
+      />
     </>
   );
 };
@@ -1219,6 +1076,10 @@ export default function App() {
   >("digital");
   const [customAlarmName, setCustomAlarmName] = useState("");
   const [halfwaySoundEnabled, setHalfwaySoundEnabled] = useState(false);
+  const [musicMuted, setMusicMuted] = useState(() => {
+    const saved = localStorage.getItem("tempotread_music_muted");
+    return saved === "true";
+  });
   const alarmFileInputRef = useRef<HTMLInputElement>(null);
 
   // Save confirmation states
@@ -1362,6 +1223,8 @@ export default function App() {
           setAlarmPreset(settings.alarmPreset);
           setCustomAlarmName(settings.customAlarmName);
           setHalfwaySoundEnabled(settings.halfwaySoundEnabled);
+          setMusicMuted(settings.musicMuted ?? false);
+          audioEngine.setMusicMuted(settings.musicMuted ?? false);
         }
 
         setSavedWorkouts(workouts);
@@ -1437,6 +1300,10 @@ export default function App() {
         if (settings.halfwaySoundEnabled !== undefined) {
           setHalfwaySoundEnabled(settings.halfwaySoundEnabled);
         }
+        if (settings.musicMuted !== undefined) {
+          setMusicMuted(settings.musicMuted);
+          audioEngine.setMusicMuted(settings.musicMuted);
+        }
       } catch (e) {
         console.error("Failed to load alarm settings from localStorage");
       }
@@ -1484,11 +1351,14 @@ export default function App() {
       preset: alarmPreset,
       customAlarmName: customAlarmName,
       halfwaySoundEnabled: halfwaySoundEnabled,
+      musicMuted: musicMuted,
     };
     localStorage.setItem("tempotread_alarm_settings", JSON.stringify(settings));
+    localStorage.setItem("tempotread_music_muted", musicMuted.toString());
     audioEngine.setAlarmVolume(alarmVolume);
     audioEngine.setAlarmPreset(alarmPreset);
-  }, [alarmVolume, alarmPreset, customAlarmName, halfwaySoundEnabled]);
+    audioEngine.setMusicMuted(musicMuted);
+  }, [alarmVolume, alarmPreset, customAlarmName, halfwaySoundEnabled, musicMuted]);
 
   // Auto-save intervals when they change (debounced)
   useEffect(() => {
@@ -1894,7 +1764,7 @@ export default function App() {
 
   useEffect(() => {
     let songPolling: number;
-    if (state === "running" || state === "countdown") {
+    if (state === "running" || state === "countdown" || state === "paused") {
       songPolling = window.setInterval(() => {
         setCurrentSong(audioEngine.getCurrentSongInfo());
       }, 500);
@@ -2334,10 +2204,17 @@ export default function App() {
                   <p className="text-[10px] font-mono text-text-subtle uppercase mb-3 flex items-center justify-center gap-2">
                     <Music
                       size={12}
-                      className="animate-pulse"
+                      className={cn("transition-opacity", musicMuted ? "opacity-50" : "animate-pulse")}
                       style={{ color: themeColor }}
-                    />{" "}
-                    Now Playing
+                    />
+                    {musicMuted ? (
+                      <>
+                        <VolumeX size={10} className="text-text-subtle/50" />
+                        <span>Tracks Muted</span>
+                      </>
+                    ) : (
+                      <span>Now Playing</span>
+                    )}
                   </p>
                   <div className="glass bg-text-subtle/5 p-4 rounded-2xl">
                     <p className="text-sm font-bold truncate mb-2">
@@ -2591,8 +2468,17 @@ export default function App() {
                     <div className="glass bg-text-subtle/5 p-4 rounded-2xl text-left">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-[10px] font-mono text-text-subtle/70 uppercase tracking-wider flex items-center gap-1.5">
-                          <Music size={11} style={{ color: themeColor }} /> Now
-                          Playing
+                          {musicMuted ? (
+                            <>
+                              <VolumeX size={11} className="text-text-subtle/50" />
+                              <span>Muted</span>
+                            </>
+                          ) : (
+                            <>
+                              <Music size={11} style={{ color: themeColor }} />
+                              <span>Now Playing</span>
+                            </>
+                          )}
                         </p>
                         <span className="text-[10px] font-mono text-text-subtle/30">
                           {currentSong.index + 1} / {currentSong.totalSongs}
@@ -2632,404 +2518,427 @@ export default function App() {
           )}
 
         {/* Settings Modal */}
-        <AnimatePresence>
-          {showSettings && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-bg/95 backdrop-blur-xl p-3 sm:p-4 flex flex-col items-center justify-center"
+        <Modal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          variant="fullscreen"
+          title={<h2 className="text-xl sm:text-2xl font-bold tracking-tight">System Settings</h2>}
+          contentClassName="space-y-4 sm:space-y-6"
+        >
+          <section>
+            <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Save size={14} /> Save Current Timeline
+            </h3>
+            <button
+              onClick={handleSaveWorkout}
+              className="w-full py-4 bg-accent text-bg font-black rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 shadow-lg shadow-accent/20 mx-1"
             >
-              <div className="w-full max-w-[calc(100vw-1.5rem)] sm:max-w-lg md:max-w-xl lg:max-w-2xl flex flex-col h-full max-h-[92vh] sm:max-h-[90vh] glass p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] neo-shadow relative">
-                <div className="flex justify-between items-center mb-4 sm:mb-6">
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
-                    System Settings
-                  </h2>
-                  <CloseButton onClose={() => setShowSettings(false)} />
-                </div>
+              <Save size={20} />
+              <span className="font-bold">Save "{workoutTitle}"</span>
+            </button>
+          </section>
 
-                <div className="space-y-4 sm:space-y-6 overflow-y-auto pr-2 sm:pr-4 custom-scrollbar flex-1">
-                  <section>
-                    <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <Save size={14} /> Save Current Timeline
-                    </h3>
-                    <button
-                      onClick={handleSaveWorkout}
-                      className="w-full py-4 bg-accent text-bg font-black rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 shadow-lg shadow-accent/20 mx-1"
+          {savedWorkouts.length > 0 && (
+            <section className="mt-6">
+              <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <FolderOpen size={14} /> Saved Timelines
+              </h3>
+              <div className="space-y-2">
+                {savedWorkouts.map((workout) => (
+                  <div
+                    key={workout.id}
+                    className="glass p-4 rounded-2xl flex items-center justify-between group hover:bg-text-subtle/10"
+                  >
+                    <div
+                      className="flex-1 cursor-pointer"
+                      onClick={() => loadSavedWorkout(workout)}
                     >
-                      <Save size={20} />
-                      <span className="font-bold">Save "{workoutTitle}"</span>
-                    </button>
-                  </section>
-
-                  {savedWorkouts.length > 0 && (
-                    <section>
-                      <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <FolderOpen size={14} /> Saved Timelines
-                      </h3>
-                      <div className="space-y-2">
-                        {savedWorkouts.map((workout) => (
-                          <div
-                            key={workout.id}
-                            className="glass p-4 rounded-2xl flex items-center justify-between group hover:bg-text-subtle/10"
-                          >
-                            <div
-                              className="flex-1 cursor-pointer"
-                              onClick={() => loadSavedWorkout(workout)}
-                            >
-                              <p className="font-bold text-lg">
-                                {workout.title}
-                              </p>
-                              <p className="text-[10px] font-mono text-text-subtle/40 uppercase tracking-wider">
-                                {workout.intervals.length} Intervals •{" "}
-                                {(() => {
-                                  const totalSeconds = workout.intervals.reduce(
-                                    (acc, i) => acc + i.duration,
-                                    0,
-                                  );
-                                  const mins = Math.floor(totalSeconds / 60);
-                                  const secs = totalSeconds % 60;
-                                  return `${mins}m ${secs.toString().padStart(2, "0")}s`;
-                                })()}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => duplicateSavedWorkout(workout.id)}
-                                className="p-3 text-text-subtle/30 hover:text-accent transition-colors"
-                                title="Duplicate Workout"
-                              >
-                                <Copy size={20} />
-                              </button>
-                              <button
-                                onClick={() => setWorkoutToDelete({ id: workout.id, title: workout.title })}
-                                className="p-3 text-text-subtle/30 hover:text-red-400 transition-colors"
-                                title="Delete Saved Workout"
-                              >
-                                <MinusCircle size={20} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-
-                  <section>
-                    <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <Volume2 size={14} /> Alarm Settings
-                    </h3>
-                    <div className="glass p-4 rounded-2xl space-y-4">
-                      {/* Volume Slider */}
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <label className="text-sm text-text-muted/90">
-                            Alarm Volume
-                          </label>
-                          <span className="text-sm font-mono text-text-subtle/60">
-                            {Math.round(alarmVolume * 100)}%
-                          </span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={alarmVolume}
-                          onChange={(e) =>
-                            setAlarmVolume(parseFloat(e.target.value))
-                          }
-                          className="w-full h-2 bg-text-subtle/20 rounded-lg appearance-none cursor-pointer accent-accent hover:bg-text-subtle/30 transition-colors"
-                        />
-                      </div>
-
-                      {/* Preset Selector */}
-                      <div className="space-y-3">
-                        <label className="text-sm text-text-muted/90">
-                          Alarm Sound
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {[
-                            {
-                              value: "digital",
-                              label: "Digital",
-                              desc: "Classic beep",
-                            },
-                            {
-                              value: "chime",
-                              label: "Chime",
-                              desc: "Soft bell",
-                            },
-                            {
-                              value: "bell",
-                              label: "Bell",
-                              desc: "Ringing tone",
-                            },
-                            {
-                              value: "buzzer",
-                              label: "Buzzer",
-                              desc: "Alert buzz",
-                            },
-                            {
-                              value: "custom",
-                              label: "Custom",
-                              desc: customAlarmName || "Upload file",
-                            },
-                          ].map((preset) => (
-                            <button
-                              key={preset.value}
-                              onClick={() =>
-                                setAlarmPreset(
-                                  preset.value as typeof alarmPreset,
-                                )
-                              }
-                              className={cn(
-                                "p-3 rounded-xl border text-left",
-                                alarmPreset === preset.value
-                                  ? "border-accent bg-accent/10"
-                                  : "border-text-subtle/20 bg-text-subtle/10 hover:border-text-subtle/30",
-                              )}
-                            >
-                              <div className="text-xs font-bold text-text/90">
-                                {preset.label}
-                              </div>
-                              <div className="text-[10px] text-text-subtle/50 truncate">
-                                {preset.desc}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Custom File Upload */}
-                      {alarmPreset === "custom" && (
-                        <div className="space-y-3">
-                          <input
-                            type="file"
-                            ref={alarmFileInputRef}
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                try {
-                                  await audioEngine.setCustomAlarmFile(file);
-                                  setCustomAlarmName(file.name);
-                                } catch (err) {
-                                  console.error(
-                                    "Failed to load custom alarm:",
-                                    err,
-                                  );
-                                }
-                              }
-                            }}
-                            accept="audio/*"
-                            className="hidden"
-                          />
-                          <button
-                            onClick={() => alarmFileInputRef.current?.click()}
-                            className="w-full py-3 bg-text-subtle/10 border border-text-subtle/20 rounded-xl flex items-center justify-center gap-2 text-sm hover:bg-text-subtle/20"
-                          >
-                            <Upload size={16} />
-                            {customAlarmName
-                              ? "Change Custom Sound"
-                              : "Upload Custom Sound"}
-                          </button>
-                          {customAlarmName && (
-                            <div className="flex items-center justify-between p-3 bg-text-subtle/10 rounded-lg">
-                              <span className="text-xs text-text-muted/90 truncate">
-                                {customAlarmName}
-                              </span>
-                              <button
-                                onClick={() => {
-                                  audioEngine.clearCustomAlarm();
-                                  setCustomAlarmName("");
-                                  setAlarmPreset("digital");
-                                }}
-                                className="text-text-subtle/40 hover:text-red-400"
-                                aria-label="Clear custom alarm"
-                              >
-                                <MinusCircle size={16} />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Test Button */}
+                      <p className="font-bold text-lg">
+                        {workout.title}
+                      </p>
+                      <p className="text-[10px] font-mono text-text-subtle/40 uppercase tracking-wider">
+                        {workout.intervals.length} Intervals •{" "}
+                        {(() => {
+                          const totalSeconds = workout.intervals.reduce(
+                            (acc, i) => acc + i.duration,
+                            0,
+                          );
+                          const mins = Math.floor(totalSeconds / 60);
+                          const secs = totalSeconds % 60;
+                          return `${mins}m ${secs.toString().padStart(2, "0")}s`;
+                        })()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
                       <button
-                        onClick={() => audioEngine.testAlarm()}
-                        className="w-full py-3 bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-accent hover:bg-accent/20"
+                        onClick={() => duplicateSavedWorkout(workout.id)}
+                        className="p-3 text-text-subtle/30 hover:text-accent transition-colors"
+                        title="Duplicate Workout"
                       >
-                        <Play size={16} fill="currentColor" />
-                        Test Alarm Sound
+                        <Copy size={20} />
                       </button>
+                      <button
+                        onClick={() => setWorkoutToDelete({ id: workout.id, title: workout.title })}
+                        className="p-3 text-text-subtle/30 hover:text-red-400 transition-colors"
+                        title="Delete Saved Workout"
+                      >
+                        <MinusCircle size={20} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
-                      {/* Halfway Sound Toggle */}
-                      <div className="flex items-center justify-between py-3 border-t border-text-subtle/10">
-                        <div>
-                          <label className="text-sm text-text-muted/90">
-                            Halfway Alert
-                          </label>
-                          <p className="text-[10px] text-text-subtle/50">
-                            Sound when interval reaches 50%
-                          </p>
-                        </div>
-                        <button
-                          onClick={() =>
-                            setHalfwaySoundEnabled(!halfwaySoundEnabled)
-                          }
-                          className={cn(
-                            "w-11 h-6 rounded-full relative flex items-center",
-                            halfwaySoundEnabled ? "bg-accent" : "bg-text-subtle/40",
-                          )}
-                          aria-label={
-                            halfwaySoundEnabled
-                              ? "Disable halfway alert"
-                              : "Enable halfway alert"
-                          }
-                          aria-pressed={halfwaySoundEnabled}
-                        >
-                          <span
-                            className={cn(
-                              "w-4 h-4 rounded-full bg-text",
-                              halfwaySoundEnabled
-                                ? "translate-x-6"
-                                : "translate-x-1",
-                            )}
-                          />
-                        </button>
-                      </div>
+          <section className="mt-6">
+            <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Volume2 size={14} /> Alarm Settings
+            </h3>
+            <div className="glass p-4 rounded-2xl space-y-4">
+              {/* Volume Slider */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <label className="text-sm text-text-muted/90">
+                    Alarm Volume
+                  </label>
+                  <span className="text-sm font-mono text-text-subtle/60">
+                    {Math.round(alarmVolume * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={alarmVolume}
+                  onChange={(e) =>
+                    setAlarmVolume(parseFloat(e.target.value))
+                  }
+                  className="w-full h-2 bg-text-subtle/20 rounded-lg appearance-none cursor-pointer accent-accent hover:bg-text-subtle/30 transition-colors"
+                />
+              </div>
 
-                      {/* Save Settings Button */}
-                      {user && (
-                        <div className="pt-4 border-t border-text-subtle/10">
-                          <button
-                            onClick={async () => {
-                              const titleToSave = workoutTitle?.trim() || "TempoTread Session";
-                              let workoutId = currentWorkoutId;
-
-                              // If we have a currentWorkoutId, update that specific workout
-                              if (currentWorkoutId) {
-                                const workoutToUpdate = {
-                                  id: currentWorkoutId,
-                                  title: titleToSave,
-                                  intervals: intervals.map(interval => ({
-                                    id: interval.id,
-                                    name: interval.name || "",
-                                    duration: interval.duration || 0,
-                                    color: interval.color || "#F27D26",
-                                    ...(interval.notes !== undefined && { notes: interval.notes }),
-                                    ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
-                                    ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
-                                  })),
-                                };
-                                await saveWorkoutToLibrary(user.uid, workoutToUpdate);
-
-                                // Update local state
-                                setSavedWorkouts(prev => {
-                                  const filtered = prev.filter(w => w.id !== currentWorkoutId);
-                                  return [workoutToUpdate, ...filtered];
-                                });
-                              } else {
-                                // No currentWorkoutId, use the old logic (title-based matching)
-                                const result = await saveOrReplaceWorkout(user.uid, {
-                                  workoutTitle: titleToSave,
-                                  intervals,
-                                }, savedWorkouts);
-                                workoutId = result.id;
-
-                                const newWorkout = { id: result.id, title: titleToSave, intervals };
-                                setSavedWorkouts(prev => {
-                                  const filtered = prev.filter(w => w.id !== result.id);
-                                  return [newWorkout, ...filtered];
-                                });
-                                setCurrentWorkoutId(result.id);
-                              }
-
-                              // Save alarm settings separately
-                              await saveSettings(user.uid, {
-                                alarmVolume,
-                                alarmPreset,
-                                customAlarmName,
-                                customAlarmStoragePath: null,
-                                halfwaySoundEnabled,
-                              });
-                              setSettingsSaved(true);
-                              setTimeout(() => setSettingsSaved(false), 2000);
-                            }}
-                            className="w-full py-3 bg-accent text-bg font-bold rounded-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 shadow-lg shadow-accent/20"
-                          >
-                            <Save size={16} />
-                            {settingsSaved ? "Saved!" : "Save"}
-                          </button>
-                        </div>
+              {/* Preset Selector */}
+              <div className="space-y-3">
+                <label className="text-sm text-text-muted/90">
+                  Alarm Sound
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      value: "digital",
+                      label: "Digital",
+                      desc: "Classic beep",
+                    },
+                    {
+                      value: "chime",
+                      label: "Chime",
+                      desc: "Soft bell",
+                    },
+                    {
+                      value: "bell",
+                      label: "Bell",
+                      desc: "Ringing tone",
+                    },
+                    {
+                      value: "buzzer",
+                      label: "Buzzer",
+                      desc: "Alert buzz",
+                    },
+                    {
+                      value: "custom",
+                      label: "Custom",
+                      desc: customAlarmName || "Upload file",
+                    },
+                  ].map((preset) => (
+                    <button
+                      key={preset.value}
+                      onClick={() =>
+                        setAlarmPreset(
+                          preset.value as typeof alarmPreset,
+                        )
+                      }
+                      className={cn(
+                        "p-3 rounded-xl border text-left",
+                        alarmPreset === preset.value
+                          ? "border-accent bg-accent/10"
+                          : "border-text-subtle/20 bg-text-subtle/10 hover:border-text-subtle/30",
                       )}
-                    </div>
-                  </section>
-
-                  {/* Theme Toggle Section - Moved below Alarm Settings */}
-                  <section>
-                    <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />} Appearance
-                    </h3>
-                    <div className="glass p-4 rounded-2xl">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <label className="text-sm text-text-muted/90">
-                            Theme
-                          </label>
-                          <p className="text-[10px] text-text-subtle/50">
-                            {theme === "dark" ? "Dark mode enabled" : "Light mode enabled"}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                          className={cn(
-                            "w-14 h-8 rounded-full relative flex items-center p-1",
-                            theme === "dark" ? "bg-accent/30" : "bg-accent/30"
-                          )}
-                          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-                        >
-                          <span className="sr-only">
-                            {theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-                          </span>
-                          <motion.span
-                            layout
-                            className={cn(
-                              "w-6 h-6 rounded-full flex items-center justify-center shadow-sm",
-                              theme === "dark" ? "bg-bg translate-x-6" : "bg-text translate-x-0"
-                            )}
-                          >
-                            {theme === "dark" ? (
-                              <Moon size={14} className="text-text" />
-                            ) : (
-                              <Sun size={14} className="text-bg" />
-                            )}
-                          </motion.span>
-                        </button>
+                    >
+                      <div className="text-xs font-bold text-text/90">
+                        {preset.label}
                       </div>
-                    </div>
-                  </section>
-
-                  <section>
-                    <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <Settings size={14} /> App Information
-                    </h3>
-                    <div className="glass p-5 rounded-2xl space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-text-subtle/50">Version</span>
-                        <span className="font-mono">1.2.0-responsive</span>
+                      <div className="text-[10px] text-text-subtle/50 truncate">
+                        {preset.desc}
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-text-subtle/50">Build Date</span>
-                        <span className="font-mono">MAR 2026</span>
-                      </div>
-                    </div>
-                  </section>
+                    </button>
+                  ))}
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
+              {/* Custom File Upload */}
+              {alarmPreset === "custom" && (
+                <div className="space-y-3">
+                  <input
+                    type="file"
+                    ref={alarmFileInputRef}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        try {
+                          await audioEngine.setCustomAlarmFile(file);
+                          setCustomAlarmName(file.name);
+                        } catch (err) {
+                          console.error(
+                            "Failed to load custom alarm:",
+                            err,
+                          );
+                        }
+                      }
+                    }}
+                    accept="audio/*"
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => alarmFileInputRef.current?.click()}
+                    className="w-full py-3 bg-text-subtle/10 border border-text-subtle/20 rounded-xl flex items-center justify-center gap-2 text-sm hover:bg-text-subtle/20"
+                  >
+                    <Upload size={16} />
+                    {customAlarmName
+                      ? "Change Custom Sound"
+                      : "Upload Custom Sound"}
+                  </button>
+                  {customAlarmName && (
+                    <div className="flex items-center justify-between p-3 bg-text-subtle/10 rounded-lg">
+                      <span className="text-xs text-text-muted/90 truncate">
+                        {customAlarmName}
+                      </span>
+                      <button
+                        onClick={() => {
+                          audioEngine.clearCustomAlarm();
+                          setCustomAlarmName("");
+                          setAlarmPreset("digital");
+                        }}
+                        className="text-text-subtle/40 hover:text-red-400"
+                        aria-label="Clear custom alarm"
+                      >
+                        <MinusCircle size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Test Button */}
+              <button
+                onClick={() => audioEngine.testAlarm()}
+                className="w-full py-3 bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-accent hover:bg-accent/20"
+              >
+                <Play size={16} fill="currentColor" />
+                Test Alarm Sound
+              </button>
+
+              {/* Halfway Sound Toggle */}
+              <div className="flex items-center justify-between py-3 border-t border-text-subtle/10">
+                <div>
+                  <label className="text-sm text-text-muted/90">
+                    Halfway Alert
+                  </label>
+                  <p className="text-[10px] text-text-subtle/50">
+                    Sound when interval reaches 50%
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    setHalfwaySoundEnabled(!halfwaySoundEnabled)
+                  }
+                  className={cn(
+                    "w-11 h-6 rounded-full relative flex items-center",
+                    halfwaySoundEnabled ? "bg-accent" : "bg-text-subtle/40",
+                  )}
+                  aria-label={
+                    halfwaySoundEnabled
+                      ? "Disable halfway alert"
+                      : "Enable halfway alert"
+                  }
+                  aria-pressed={halfwaySoundEnabled}
+                >
+                  <span
+                    className={cn(
+                      "w-4 h-4 rounded-full bg-text",
+                      halfwaySoundEnabled
+                        ? "translate-x-6"
+                        : "translate-x-1",
+                    )}
+                  />
+                </button>
+              </div>
+
+              {/* Mute All Tracks Toggle */}
+              <div className="flex items-center justify-between py-3 border-t border-text-subtle/10">
+                <div>
+                  <label className="text-sm text-text-muted/90">
+                    Mute All Tracks
+                  </label>
+                  <p className="text-[10px] text-text-subtle/50">
+                    Silence interval music, keep countdown beeps
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    setMusicMuted(!musicMuted)
+                  }
+                  className={cn(
+                    "w-11 h-6 rounded-full relative flex items-center",
+                    musicMuted ? "bg-accent" : "bg-text-subtle/40",
+                  )}
+                  aria-label={
+                    musicMuted
+                      ? "Unmute all tracks"
+                      : "Mute all tracks"
+                  }
+                  aria-pressed={musicMuted}
+                >
+                  <span
+                    className={cn(
+                      "w-4 h-4 rounded-full bg-text",
+                      musicMuted
+                        ? "translate-x-6"
+                        : "translate-x-1",
+                    )}
+                  />
+                </button>
+              </div>
+
+              {/* Save Settings Button */}
+              {user && (
+                <div className="pt-4 border-t border-text-subtle/10">
+                  <button
+                    onClick={async () => {
+                      const titleToSave = workoutTitle?.trim() || "TempoTread Session";
+                      let workoutId = currentWorkoutId;
+
+                      // If we have a currentWorkoutId, update that specific workout
+                      if (currentWorkoutId) {
+                        const workoutToUpdate = {
+                          id: currentWorkoutId,
+                          title: titleToSave,
+                          intervals: intervals.map(interval => ({
+                            id: interval.id,
+                            name: interval.name || "",
+                            duration: interval.duration || 0,
+                            color: interval.color || "#F27D26",
+                            ...(interval.notes !== undefined && { notes: interval.notes }),
+                            ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
+                            ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
+                          })),
+                        };
+                        await saveWorkoutToLibrary(user.uid, workoutToUpdate);
+
+                        // Update local state
+                        setSavedWorkouts(prev => {
+                          const filtered = prev.filter(w => w.id !== currentWorkoutId);
+                          return [workoutToUpdate, ...filtered];
+                        });
+                      } else {
+                        // No currentWorkoutId, use the old logic (title-based matching)
+                        const result = await saveOrReplaceWorkout(user.uid, {
+                          workoutTitle: titleToSave,
+                          intervals,
+                        }, savedWorkouts);
+                        workoutId = result.id;
+
+                        const newWorkout = { id: result.id, title: titleToSave, intervals };
+                        setSavedWorkouts(prev => {
+                          const filtered = prev.filter(w => w.id !== result.id);
+                          return [newWorkout, ...filtered];
+                        });
+                        setCurrentWorkoutId(result.id);
+                      }
+
+                      // Save alarm settings separately
+                      await saveSettings(user.uid, {
+                        alarmVolume,
+                        alarmPreset,
+                        customAlarmName,
+                        customAlarmStoragePath: null,
+                        halfwaySoundEnabled,
+                        musicMuted,
+                      });
+                      setSettingsSaved(true);
+                      setTimeout(() => setSettingsSaved(false), 2000);
+                    }}
+                    className="w-full py-3 bg-accent text-bg font-bold rounded-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 shadow-lg shadow-accent/20"
+                  >
+                    <Save size={16} />
+                    {settingsSaved ? "Saved!" : "Save"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Theme Toggle Section - Moved below Alarm Settings */}
+          <section className="mt-6">
+            <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
+              {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />} Appearance
+            </h3>
+            <div className="glass p-4 rounded-2xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm text-text-muted/90">
+                    Theme
+                  </label>
+                  <p className="text-[10px] text-text-subtle/50">
+                    {theme === "dark" ? "Dark mode enabled" : "Light mode enabled"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className={cn(
+                    "w-14 h-8 rounded-full relative flex items-center p-1",
+                    theme === "dark" ? "bg-accent/30" : "bg-accent/30"
+                  )}
+                  aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                >
+                  <span className="sr-only">
+                    {theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                  </span>
+                  <motion.span
+                    layout
+                    className={cn(
+                      "w-6 h-6 rounded-full flex items-center justify-center shadow-sm",
+                      theme === "dark" ? "bg-bg translate-x-6" : "bg-text translate-x-0"
+                    )}
+                  >
+                    {theme === "dark" ? (
+                      <Moon size={14} className="text-text" />
+                    ) : (
+                      <Sun size={14} className="text-bg" />
+                    )}
+                  </motion.span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Settings size={14} /> App Information
+            </h3>
+            <div className="glass p-5 rounded-2xl space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-text-subtle/50">Version</span>
+                <span className="font-mono">1.2.0-responsive</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-text-subtle/50">Build Date</span>
+                <span className="font-mono">MAR 2026</span>
+              </div>
+            </div>
+          </section>
+        </Modal>
 
         <AnimatePresence>
           {editingIntervalId && (
@@ -3051,108 +2960,68 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <AnimatePresence>
+        {/* Interval Notes Modal */}
+        <Modal
+          isOpen={!!viewingNotesId}
+          onClose={() => setViewingNotesId(null)}
+          variant="centered"
+          contentClassName="p-4 sm:p-6"
+          closeButtonClassName="text-text-subtle/40 hover:text-text"
+        >
           {viewingNotesId && (
             <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: isMobile ? 0.15 : 0.2 }}
-                className="fixed inset-0 bg-text-subtle/60 backdrop-blur-sm z-[99]"
-                onClick={() => setViewingNotesId(null)}
+              <div className="mb-4">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-text-subtle/50">
+                  Interval Notes
+                </span>
+                <p className="text-sm font-bold text-text-muted/90 mt-1">
+                  {intervals.find((i) => i.id === viewingNotesId)?.name || "Untitled"}
+                </p>
+              </div>
+              <textarea
+                autoFocus={!isMobile}
+                value={intervals.find((i) => i.id === viewingNotesId)?.notes || ""}
+                onChange={(e) =>
+                  updateInterval(viewingNotesId, { notes: e.target.value })
+                }
+                placeholder="Add notes for this interval..."
+                className="w-full h-32 bg-text-subtle/10 border rounded-lg p-3 text-base sm:text-sm text-text-muted/90 focus:outline-none resize-none placeholder:text-text-subtle/20 transition-all focus:ring-2 focus:border-transparent"
+                style={{
+                  borderColor: `${intervals.find((i) => i.id === viewingNotesId)?.color || "#ffffff"}20`,
+                }}
               />
-              <motion.div
-                initial={isMobile ? { opacity: 0, scale: 0.95 } : { y: "100%", opacity: 0 }}
-                animate={isMobile ? { opacity: 1, scale: 1 } : { y: 0, opacity: 1 }}
-                exit={isMobile ? { opacity: 0, scale: 0.95 } : { y: "100%", opacity: 0 }}
-                transition={
-                  isMobile
-                    ? { duration: 0.15 }
-                    : { type: "spring", damping: 30, stiffness: 300 }
-                }
-                className={isMobile
-                  ? "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[calc(100vw-2rem)] max-w-sm"
-                  : "fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4"
-                }
-              >
-                <div
-                  className={cn(
-                    "glass border rounded-2xl p-4 sm:p-6 shadow-2xl max-h-[70vh] overflow-y-auto w-full",
-                    !isMobile && "max-w-sm pointer-events-auto"
-                  )}
-                  style={{
-                    borderColor: `${intervals.find((i) => i.id === viewingNotesId)?.color || "#ffffff"}20`,
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-text-subtle/50">
-                        Interval Notes
-                      </span>
-                      <p className="text-sm font-bold text-text-muted/90 mt-1">
-                        {intervals.find((i) => i.id === viewingNotesId)?.name ||
-                          "Untitled"}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setViewingNotesId(null)}
-                      className="text-text-subtle/40 hover:text-text"
-                      aria-label="Close notes"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                  <textarea
-                    autoFocus={!isMobile}
-                    value={
-                      intervals.find((i) => i.id === viewingNotesId)?.notes ||
-                      ""
-                    }
-                    onChange={(e) =>
-                      updateInterval(viewingNotesId, { notes: e.target.value })
-                    }
-                    placeholder="Add notes for this interval..."
-                    className="w-full h-32 bg-text-subtle/10 border rounded-lg p-3 text-base sm:text-sm text-text-muted/90 focus:outline-none resize-none placeholder:text-text-subtle/20 transition-all focus:ring-2 focus:border-transparent"
-                    style={{
-                      borderColor: `${intervals.find((i) => i.id === viewingNotesId)?.color || "#ffffff"}20`,
-                      ringColor: intervals.find((i) => i.id === viewingNotesId)
-                        ?.color,
-                      ringOpacity: 0.5,
-                    }}
-                  />
-                </div>
-              </motion.div>
             </>
           )}
-        </AnimatePresence>
+        </Modal>
 
         {/* Delete Workout Confirmation */}
-        <ConfirmDialog
+        <ConfirmModal
           isOpen={workoutToDelete !== null}
+          onClose={() => setWorkoutToDelete(null)}
           title="Delete Saved Timeline?"
           message={`Are you sure you want to delete "${workoutToDelete?.title}"? This action cannot be undone.`}
+          confirmLabel="Delete"
           onConfirm={() => {
             if (workoutToDelete) {
               deleteSavedWorkout(workoutToDelete.id);
-              setWorkoutToDelete(null);
             }
           }}
-          onCancel={() => setWorkoutToDelete(null)}
+          confirmVariant="danger"
         />
 
         {/* New Workout Confirmation Dialog */}
-        <ConfirmDialog
+        <ConfirmModal
           isOpen={showNewWorkoutConfirm}
+          onClose={() => setShowNewWorkoutConfirm(false)}
           title="Start New Workout?"
           message="This will clear all current intervals and reset the workout title. This action cannot be undone."
           confirmLabel="Clear & Start New"
           onConfirm={clearWorkout}
-          onCancel={() => setShowNewWorkoutConfirm(false)}
+          confirmVariant="danger"
         />
 
         {/* Login Prompt Dialog */}
-        <LoginPromptDialog
+        <LoginModal
           isOpen={showLoginPrompt}
           onClose={() => setShowLoginPrompt(false)}
         />
