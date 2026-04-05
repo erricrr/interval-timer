@@ -1395,6 +1395,8 @@ export default function App() {
 
   const startWorkout = () => {
     if (intervals.length === 0) return;
+    // Synchronous tap path: primes HTMLAudio for iOS (delayed play after countdown)
+    audioEngine.primePlaybackFromUserGesture();
     void audioEngine.resumeAudioContext();
 
     if (state === "idle" || state === "finished") {

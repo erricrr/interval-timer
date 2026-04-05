@@ -1,13 +1,22 @@
 /**
  * Audio Engine for TempoTread
- * - Alarms: Web Audio oscillators / small decoded buffers (custom alarm)
- * - Playlist music: HTMLAudioElement + MediaElementAudioSourceNode (streams; low RAM)
+ * - Alarms: Web Audio API (oscillators / short decoded custom alarm buffer)
+ * - Playlist music: HTMLAudioElement native output + volume (streams; no full PCM). Uses
+ *   crossOrigin=anonymous so Firebase Storage URLs load with CORS; avoids MediaElementSource
+ *   (which silences cross-origin audio without CORS in the Web Audio graph). Beeps → Web Audio.
  */
 
 import { PlaylistTrack } from "./utils";
 
 /** Trim long custom alarm clips to avoid large buffers on mobile */
 const CUSTOM_ALARM_MAX_SECONDS = 30;
+
+/** Tiny WAV — play+pause in a tap handler unlocks iOS for later play() after countdown */
+const SILENT_WAV_DATA_URI =
+  "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAA=";
+
+/** Relative level vs beeps (matches previous musicGain 0.5 into master) */
+const MUSIC_VOLUME = 0.5;
 
 type TrackEntry = {
   name: string;
@@ -20,9 +29,11 @@ class AudioEngine {
   private ctx: AudioContext | null = null;
   private trackEntries: Map<string, TrackEntry> = new Map();
 
-  /** Single element for all playlist playback; decoded by the browser, not full PCM in JS */
+  /** Single element for all playlist — routed to device speakers via .volume (not MediaElementSource) */
   private playlistAudio: HTMLAudioElement | null = null;
-  private mediaElementSource: MediaElementAudioSourceNode | null = null;
+
+  /** iOS: HTMLAudio unlock requires play() during user gesture; silent clip primes delayed playback */
+  private playbackPrimed = false;
 
   private playlistState: {
     playlist: PlaylistTrack[];
@@ -36,8 +47,7 @@ class AudioEngine {
     groupStartTime: number;
   } | null = null;
 
-  // Audio routing nodes for clean mixing
-  private musicGain: GainNode | null = null;
+  // Beeps only — music uses HTMLAudioElement.volume + crossOrigin for remote URLs
   private beepsGain: GainNode | null = null;
   private masterGain: GainNode | null = null;
 
@@ -55,18 +65,12 @@ class AudioEngine {
       this.ctx = new (window.AudioContext ||
         (window as any).webkitAudioContext)();
 
-      // Create audio routing nodes for clean mixing
       this.masterGain = this.ctx.createGain();
-      this.musicGain = this.ctx.createGain();
       this.beepsGain = this.ctx.createGain();
 
-      // Set default volumes
       this.masterGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
-      this.musicGain.gain.setValueAtTime(this.musicMuted ? 0 : 0.5, this.ctx.currentTime);
       this.beepsGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
 
-      // Connect to destination
-      this.musicGain.connect(this.masterGain);
       this.beepsGain.connect(this.masterGain);
       this.masterGain.connect(this.ctx.destination);
     }
@@ -75,17 +79,55 @@ class AudioEngine {
     }
   }
 
-  /** Ensure playlist element exists and is wired into musicGain (once per element). */
-  private ensurePlaylistAudio() {
-    this.init();
-    if (!this.ctx || !this.musicGain) return;
+  private syncPlaylistVolume() {
+    if (!this.playlistAudio) return;
+    this.playlistAudio.volume = this.musicMuted ? 0 : MUSIC_VOLUME;
+  }
 
+  /** Call synchronously from Start / Resume tap — required for iOS to allow play() after countdown */
+  primePlaybackFromUserGesture(): void {
+    this.init();
+    void this.ctx?.resume();
+    this.ensurePlaylistAudio();
+    this.syncPlaylistVolume();
+
+    if (this.playbackPrimed) return;
+
+    const el = this.playlistAudio!;
+    el.src = SILENT_WAV_DATA_URI;
+    try {
+      el.load();
+    } catch {
+      /* ignore */
+    }
+    const p = el.play();
+    if (p !== undefined) {
+      void p
+        .then(() => {
+          el.pause();
+          el.removeAttribute("src");
+          try {
+            el.load();
+          } catch {
+            /* ignore */
+          }
+          this.playbackPrimed = true;
+        })
+        .catch(() => {
+          /* next tap can retry */
+        });
+    } else {
+      this.playbackPrimed = true;
+    }
+  }
+
+  private ensurePlaylistAudio() {
     if (!this.playlistAudio) {
       this.playlistAudio = new Audio();
+      // Before any src — required for Firebase Storage / cross-origin HTTPS URLs (CORS)
       this.playlistAudio.crossOrigin = "anonymous";
       this.playlistAudio.preload = "auto";
-      this.mediaElementSource = this.ctx.createMediaElementSource(this.playlistAudio);
-      this.mediaElementSource.connect(this.musicGain);
+      this.syncPlaylistVolume();
     }
   }
 
@@ -228,9 +270,7 @@ class AudioEngine {
 
   setMusicMuted(muted: boolean) {
     this.musicMuted = muted;
-    if (this.ctx && this.musicGain) {
-      this.musicGain.gain.setValueAtTime(muted ? 0 : 0.5, this.ctx.currentTime);
-    }
+    this.syncPlaylistVolume();
   }
 
   isMusicMuted(): boolean {
@@ -305,22 +345,31 @@ class AudioEngine {
 
     const offset = this.playlistState.currentOffset;
 
-    const startPlayback = () => {
+    const tryPlay = () => {
       try {
         el.currentTime = offset;
       } catch {
         /* ignore */
       }
-      void el.play().catch(() => {});
+      const p = el.play();
+      if (p !== undefined) {
+        void p.catch(() => {
+          const onReady = () => {
+            void el.play().catch(() => {});
+            el.removeEventListener("canplay", onReady);
+          };
+          el.addEventListener("canplay", onReady, { once: true });
+        });
+      }
     };
 
     if (this.currentPlaylistTrackId !== track.audioId) {
       this.currentPlaylistTrackId = track.audioId;
       el.src = entry.url;
-      el.addEventListener("loadedmetadata", startPlayback, { once: true });
+      el.addEventListener("loadedmetadata", tryPlay, { once: true });
       el.load();
     } else {
-      startPlayback();
+      tryPlay();
     }
   }
 
