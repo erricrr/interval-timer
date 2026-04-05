@@ -1,20 +1,29 @@
 /**
  * Audio Engine for TempoTread
- * Uses Web Audio API to synthesize tones
+ * - Alarms: Web Audio oscillators / small decoded buffers (custom alarm)
+ * - Playlist music: HTMLAudioElement + MediaElementAudioSourceNode (streams; low RAM)
  */
 
-import { ColorGroup, PlaylistTrack } from "./utils";
+import { PlaylistTrack } from "./utils";
+
+/** Trim long custom alarm clips to avoid large buffers on mobile */
+const CUSTOM_ALARM_MAX_SECONDS = 30;
+
+type TrackEntry = {
+  name: string;
+  url: string;
+  duration: number;
+  revokeOnRemove: boolean;
+};
 
 class AudioEngine {
   private ctx: AudioContext | null = null;
-  private customBuffers: Map<string, { buffer: AudioBuffer; name: string }> =
-    new Map();
-  private currentSources: {
-    source: AudioBufferSourceNode;
-    startTime: number;
-    offset: number;
-    buffer: AudioBuffer;
-  }[] = [];
+  private trackEntries: Map<string, TrackEntry> = new Map();
+
+  /** Single element for all playlist playback; decoded by the browser, not full PCM in JS */
+  private playlistAudio: HTMLAudioElement | null = null;
+  private mediaElementSource: MediaElementAudioSourceNode | null = null;
+
   private playlistState: {
     playlist: PlaylistTrack[];
     intervalDuration: number;
@@ -66,39 +75,77 @@ class AudioEngine {
     }
   }
 
+  /** Ensure playlist element exists and is wired into musicGain (once per element). */
+  private ensurePlaylistAudio() {
+    this.init();
+    if (!this.ctx || !this.musicGain) return;
+
+    if (!this.playlistAudio) {
+      this.playlistAudio = new Audio();
+      this.playlistAudio.crossOrigin = "anonymous";
+      this.playlistAudio.preload = "auto";
+      this.mediaElementSource = this.ctx.createMediaElementSource(this.playlistAudio);
+      this.mediaElementSource.connect(this.musicGain);
+    }
+  }
+
+  private probeAudioDuration(url: string): Promise<number> {
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      audio.preload = "metadata";
+      audio.crossOrigin = "anonymous";
+      const finish = (d: number) => {
+        audio.removeAttribute("src");
+        audio.load();
+        resolve(Number.isFinite(d) && d > 0 ? d : 0);
+      };
+      audio.addEventListener("loadedmetadata", () => finish(audio.duration));
+      audio.addEventListener("error", () => finish(0));
+      audio.src = url;
+    });
+  }
+
   async addCustomAudio(file: File): Promise<string> {
     this.init();
-    if (!this.ctx) throw new Error("Audio context not initialized");
-
     const id = Math.random().toString(36).substr(2, 9);
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = await this.ctx.decodeAudioData(arrayBuffer);
-
-    this.customBuffers.set(id, { buffer, name: file.name });
+    const url = URL.createObjectURL(file);
+    const duration = await this.probeAudioDuration(url);
+    this.trackEntries.set(id, {
+      name: file.name,
+      url,
+      duration,
+      revokeOnRemove: true,
+    });
     return id;
   }
 
   async addAudioFromURL(id: string, name: string, url: string): Promise<void> {
-    this.init();
-    if (!this.ctx) throw new Error("Audio context not initialized");
-
-    const response = await fetch(url);
-    const blob = await response.blob();
-    const arrayBuffer = await blob.arrayBuffer();
-    const buffer = await this.ctx.decodeAudioData(arrayBuffer);
-
-    this.customBuffers.set(id, { buffer, name });
+    const duration = await this.probeAudioDuration(url);
+    this.trackEntries.set(id, {
+      name,
+      url,
+      duration,
+      revokeOnRemove: false,
+    });
   }
 
   getAudioLibrary() {
-    return Array.from(this.customBuffers.entries()).map(([id, data]) => ({
+    return Array.from(this.trackEntries.entries()).map(([id, data]) => ({
       id,
       name: data.name,
     }));
   }
 
   removeAudio(id: string) {
-    this.customBuffers.delete(id);
+    const entry = this.trackEntries.get(id);
+    if (entry?.revokeOnRemove) {
+      try {
+        URL.revokeObjectURL(entry.url);
+      } catch {
+        /* ignore */
+      }
+    }
+    this.trackEntries.delete(id);
   }
 
   // Alarm settings methods
@@ -118,12 +165,31 @@ class AudioEngine {
     return this.alarmPreset;
   }
 
+  private trimAudioBuffer(buffer: AudioBuffer): AudioBuffer {
+    if (!this.ctx) return buffer;
+    if (buffer.duration <= CUSTOM_ALARM_MAX_SECONDS) return buffer;
+    const frames = Math.floor(
+      CUSTOM_ALARM_MAX_SECONDS * buffer.sampleRate,
+    );
+    const out = this.ctx.createBuffer(
+      buffer.numberOfChannels,
+      frames,
+      buffer.sampleRate,
+    );
+    for (let c = 0; c < buffer.numberOfChannels; c++) {
+      const data = buffer.getChannelData(c);
+      out.copyToChannel(data.subarray(0, frames), c);
+    }
+    return out;
+  }
+
   async setCustomAlarmFile(file: File): Promise<void> {
     this.init();
     if (!this.ctx) throw new Error("Audio context not initialized");
 
     const arrayBuffer = await file.arrayBuffer();
-    this.customAlarmBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+    const decoded = await this.ctx.decodeAudioData(arrayBuffer);
+    this.customAlarmBuffer = this.trimAudioBuffer(decoded);
     this.customAlarmName = file.name;
     this.alarmPreset = "custom";
   }
@@ -171,72 +237,114 @@ class AudioEngine {
     return this.musicMuted;
   }
 
+  /** Call after user gesture or on visibility — mobile suspends AudioContext aggressively */
+  resumeAudioContext(): Promise<void> {
+    this.init();
+    if (!this.ctx) return Promise.resolve();
+    if (this.ctx.state === "suspended") {
+      return this.ctx.resume();
+    }
+    return Promise.resolve();
+  }
+
   stopAll() {
-    // Stop all currently playing sources immediately
-    this.currentSources.forEach((item) => {
+    if (this.playlistAudio) {
       try {
-        item.source.stop();
-      } catch (e) {}
-    });
-    this.currentSources = [];
-    // Clear playlist state to prevent any further playback
+        this.playlistAudio.onended = null;
+        this.playlistAudio.pause();
+        this.playlistAudio.removeAttribute("src");
+        this.playlistAudio.load();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.currentPlaylistTrackId = null;
     this.playlistState = null;
   }
 
   pauseAll() {
-    if (!this.ctx || !this.playlistState || this.playlistState.isPaused) return;
+    if (!this.playlistState || this.playlistState.isPaused) return;
 
     this.playlistState.isPaused = true;
 
-    // Calculate current offset for the active source
-    if (this.currentSources.length > 0) {
-      const active = this.currentSources[0];
-      const elapsed = this.ctx.currentTime - active.startTime;
-      this.playlistState.currentOffset = active.offset + elapsed;
-
-      active.source.stop();
-      this.currentSources = [];
+    if (this.playlistAudio) {
+      this.playlistState.currentOffset = this.playlistAudio.currentTime;
+      this.playlistAudio.pause();
     }
   }
 
   resumePlaylist() {
-    if (!this.ctx || !this.playlistState || !this.playlistState.isPaused)
-      return;
+    if (!this.playlistState || !this.playlistState.isPaused) return;
     this.playlistState.isPaused = false;
     this.playNextInPlaylist();
   }
 
-  private playBuffer(
-    buffer: AudioBuffer,
-    offset: number = 0,
-  ): AudioBufferSourceNode | null {
-    this.init();
-    if (!this.ctx || !this.musicGain) return null;
+  /** Which track id is loaded on the media element (avoid redundant src sets). */
+  private currentPlaylistTrackId: string | null = null;
 
-    const source = this.ctx.createBufferSource();
-    source.buffer = buffer;
+  private handlePlaylistEnded = () => {
+    if (!this.playlistState || this.playlistState.isPaused) return;
+    this.playlistState.currentOffset = 0;
+    this.onPlaylistTrackEnded();
+  };
 
-    // Route through musicGain for clean mixing with beeps
-    source.connect(this.musicGain);
+  private playNextInPlaylist() {
+    if (!this.playlistState || this.playlistState.isPaused) return;
 
-    // Pre-schedule slightly ahead for smoother playback
-    const when = this.ctx.currentTime + 0.01;
-    source.start(when, offset);
+    const track = this.playlistState.playlist[this.playlistState.currentIndex];
+    const entry = this.trackEntries.get(track.audioId);
 
-    const item = { source, startTime: this.ctx.currentTime, offset, buffer };
-    this.currentSources.push(item);
+    if (!entry?.url) {
+      this.onPlaylistTrackEnded();
+      return;
+    }
 
-    source.onended = () => {
-      this.currentSources = this.currentSources.filter(
-        (s) => s.source !== source,
-      );
-      // Only trigger next if we didn't stop it manually for pause
-      if (!this.playlistState?.isPaused && this.currentSources.length === 0) {
-        this.onBufferEnded();
+    this.ensurePlaylistAudio();
+    const el = this.playlistAudio!;
+    el.onended = this.handlePlaylistEnded;
+
+    const offset = this.playlistState.currentOffset;
+
+    const startPlayback = () => {
+      try {
+        el.currentTime = offset;
+      } catch {
+        /* ignore */
       }
+      void el.play().catch(() => {});
     };
 
-    return source;
+    if (this.currentPlaylistTrackId !== track.audioId) {
+      this.currentPlaylistTrackId = track.audioId;
+      el.src = entry.url;
+      el.addEventListener("loadedmetadata", startPlayback, { once: true });
+      el.load();
+    } else {
+      startPlayback();
+    }
+  }
+
+  private playlistTotalDuration(playlist: PlaylistTrack[]): number {
+    return playlist.reduce((acc, t) => {
+      const d = this.trackEntries.get(t.audioId)?.duration ?? 0;
+      return acc + d;
+    }, 0);
+  }
+
+  private onPlaylistTrackEnded() {
+    if (!this.playlistState || this.playlistState.isPaused) return;
+
+    this.playlistState.currentIndex++;
+    this.playlistState.currentOffset = 0;
+
+    if (this.playlistState.currentIndex >= this.playlistState.playlist.length) {
+      if (this.playlistState.shouldLoop) {
+        this.playlistState.currentIndex = 0;
+        this.playNextInPlaylist();
+      }
+    } else {
+      this.playNextInPlaylist();
+    }
   }
 
   // Alarm sound methods with preset support
@@ -510,17 +618,15 @@ class AudioEngine {
   }
 
   playCountdown(secondsRemaining: number) {
-    // Musical countdown - rhythmic pulse with increasing pitch
+    // Musical countdown — short synthetic cues only (never full custom alarm buffer per tick)
     const notes = [261.63, 293.66, 329.63, 349.23, 392.0]; // C4, D4, E4, F4, G4
     const freq = notes[5 - secondsRemaining] || 440;
     const volume = this.alarmVolume * 0.8;
 
-    if (this.alarmPreset === "custom" && this.customAlarmBuffer) {
-      this.playCustomAlarm();
-      return;
-    }
+    const preset =
+      this.alarmPreset === "custom" ? "digital" : this.alarmPreset;
 
-    switch (this.alarmPreset) {
+    switch (preset) {
       case "digital":
         this.playDigitalBeep(freq, 0.15, volume);
         break;
@@ -542,54 +648,20 @@ class AudioEngine {
     this.playStart();
   }
 
-  private onBufferEnded() {
-    if (!this.playlistState || this.playlistState.isPaused) return;
-
-    this.playlistState.currentIndex++;
-    this.playlistState.currentOffset = 0;
-
-    if (this.playlistState.currentIndex >= this.playlistState.playlist.length) {
-      if (this.playlistState.shouldLoop) {
-        this.playlistState.currentIndex = 0;
-        this.playNextInPlaylist();
-      }
-    } else {
-      this.playNextInPlaylist();
-    }
-  }
-
-  private playNextInPlaylist() {
-    if (!this.playlistState || this.playlistState.isPaused) return;
-
-    const track = this.playlistState.playlist[this.playlistState.currentIndex];
-    const buffer = this.customBuffers.get(track.audioId)?.buffer;
-
-    if (buffer) {
-      this.playBuffer(buffer, this.playlistState.currentOffset);
-    } else {
-      // Skip missing buffers
-      this.onBufferEnded();
-    }
-  }
-
   playPlaylist(playlist: PlaylistTrack[], intervalDurationSeconds: number) {
     this.stopAll();
     if (!playlist || playlist.length === 0) return;
 
-    const buffers = playlist
-      .map((track) => this.customBuffers.get(track.audioId)?.buffer)
-      .filter((b): b is AudioBuffer => !!b);
+    const withUrl = playlist.filter((t) => this.trackEntries.get(t.audioId)?.url);
+    if (withUrl.length === 0) return;
 
-    if (buffers.length === 0) return;
-
-    const totalPlaylistDuration = buffers.reduce(
-      (acc, b) => acc + b.duration,
-      0,
-    );
-    const shouldLoop = totalPlaylistDuration < intervalDurationSeconds;
+    const totalPlaylistDuration = this.playlistTotalDuration(withUrl);
+    const shouldLoop =
+      totalPlaylistDuration === 0 ||
+      totalPlaylistDuration < intervalDurationSeconds;
 
     this.playlistState = {
-      playlist,
+      playlist: withUrl,
       intervalDuration: intervalDurationSeconds,
       currentIndex: 0,
       currentOffset: 0,
@@ -610,24 +682,19 @@ class AudioEngine {
     isSameGroup: boolean,
   ) {
     if (!isSameGroup) {
-      // Different group - start fresh
       this.stopAll();
       if (!playlist || playlist.length === 0) return;
 
-      const buffers = playlist
-        .map((track) => this.customBuffers.get(track.audioId)?.buffer)
-        .filter((b): b is AudioBuffer => !!b);
+      const withUrl = playlist.filter((t) => this.trackEntries.get(t.audioId)?.url);
+      if (withUrl.length === 0) return;
 
-      if (buffers.length === 0) return;
-
-      const totalPlaylistDuration = buffers.reduce(
-        (acc, b) => acc + b.duration,
-        0,
-      );
-      const shouldLoop = totalPlaylistDuration < groupDuration;
+      const totalPlaylistDuration = this.playlistTotalDuration(withUrl);
+      const shouldLoop =
+        totalPlaylistDuration === 0 ||
+        totalPlaylistDuration < groupDuration;
 
       this.playlistState = {
-        playlist,
+        playlist: withUrl,
         intervalDuration: groupDuration,
         currentIndex: 0,
         currentOffset: 0,
@@ -639,33 +706,30 @@ class AudioEngine {
 
       this.playNextInPlaylist();
     }
-    // Same group - do nothing, audio continues playing
+    // Same group — audio continues playing
   }
 
-  // Check if we're currently in a specific group
   isInGroup(groupIndex: number): boolean {
     return this.playlistState?.currentGroupIndex === groupIndex;
   }
 
   getCurrentSongInfo() {
-    if (!this.playlistState) return null;
+    if (!this.playlistState || !this.playlistAudio?.src) return null;
 
     const track = this.playlistState.playlist[this.playlistState.currentIndex];
-    const data = this.customBuffers.get(track.audioId);
+    const entry = this.trackEntries.get(track.audioId);
+    if (!entry) return null;
 
-    if (!data) return null;
-
-    let currentTime = this.playlistState.currentOffset;
-    // Only add elapsed time if not paused
-    if (!this.playlistState.isPaused && this.currentSources.length > 0 && this.ctx) {
-      const active = this.currentSources[0];
-      currentTime += this.ctx.currentTime - active.startTime;
-    }
+    const el = this.playlistAudio;
+    const duration =
+      Number.isFinite(el.duration) && el.duration > 0
+        ? el.duration
+        : entry.duration;
 
     return {
-      name: data.name,
-      duration: data.buffer.duration,
-      currentTime: currentTime,
+      name: entry.name,
+      duration,
+      currentTime: el.currentTime,
       index: this.playlistState.currentIndex,
       totalSongs: this.playlistState.playlist.length,
     };

@@ -38,8 +38,13 @@ import {
 } from "lucide-react";
 import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup, PlaylistTrack } from "./lib/utils";
 import { audioEngine } from "./lib/audio";
+import { useWorkoutTimer, type WorkoutSyncRef } from "./hooks/useWorkoutTimer";
+import { useAudioLifecycle } from "./hooks/useAudioLifecycle";
+import { useWorkoutAudio } from "./hooks/useWorkoutAudio";
+import { useClickOutside } from "./hooks/useClickOutside";
 import { LoginButton } from "./components/LoginButton";
 import { Modal, ConfirmModal, LoginModal } from "./components/Modal";
+import { Button, CloseButton, type ButtonProps } from "./components/Button";
 import { auth, onAuthStateChanged } from "./lib/firebase";
 import {
   saveSettings,
@@ -57,104 +62,6 @@ import {
   saveOrReplaceWorkout,
 } from "./lib/firebaseSync";
 import type { Settings as FirebaseSettings } from "./lib/firebaseSync";
-
-// Custom hook for detecting clicks outside an element
-function useClickOutside(
-  isOpen: boolean,
-  onClose: () => void,
-  excludeRefs: React.RefObject<HTMLElement | null>[]
-) {
-  // Store refs in a ref to maintain stable reference
-  const refsRef = useRef(excludeRefs);
-  refsRef.current = excludeRefs;
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handlePointerDown = (e: PointerEvent | MouseEvent | TouchEvent) => {
-      const target = e.target as Node;
-      // Check if click is inside any excluded element (menu or trigger button)
-      const isInsideExcluded = refsRef.current.some(
-        (ref) => ref.current && ref.current.contains(target)
-      );
-      if (!isInsideExcluded) {
-        onClose();
-      }
-    };
-
-    // Use pointerdown for both mouse and touch, capture phase to ensure we get it first
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
-  }, [isOpen, onClose]);
-}
-
-type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?:
-    | "primary"
-    | "secondary"
-    | "ghost"
-    | "danger"
-    | "accent"
-    | "solid"
-    | "white"
-    | "upload";
-  size?: "xs" | "sm" | "md" | "lg" | "icon";
-};
-
-const CloseButton = ({ onClose }: { onClose: () => void }) => (
-  <button
-    onClick={onClose}
-    className="p-3 glass rounded-full text-text-muted hover:text-text"
-    aria-label="Close"
-  >
-    <X size={24} />
-  </button>
-);
-
-const Button = ({
-  variant = "primary",
-  size = "md",
-  className,
-  children,
-  ...props
-}: ButtonProps) => {
-  const variants = {
-    primary: "bg-text-subtle/20 text-text hover:bg-text-subtle/30 border border-text-subtle/20",
-    secondary:
-      "bg-text-subtle/10 text-text-muted hover:text-text hover:bg-text-subtle/20 border border-text-subtle/10",
-    ghost: "text-text-subtle hover:text-text hover:bg-text-subtle/10",
-    accent:
-      "bg-accent/10 text-accent hover:bg-accent/20 border border-accent/20",
-    solid: "bg-accent text-bg hover:bg-accent/90 border-none",
-    white: "bg-text text-bg hover:bg-text/90 border-none",
-    danger:
-      "bg-rose-400/10 text-rose-400 hover:bg-rose-400/20 border border-rose-400/20",
-    upload:
-      "bg-accent text-bg hover:bg-accent/90 border-none shadow-lg shadow-accent/20",
-  };
-
-  const sizes = {
-    xs: "px-2 py-1 text-[10px] uppercase tracking-wider font-medium",
-    sm: "px-3 py-1.5 text-xs",
-    md: "px-4 py-2 text-sm",
-    lg: "px-8 py-5 text-lg font-black tracking-[0.2em]",
-    icon: "p-2",
-  };
-
-  return (
-    <button
-      className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap",
-        variants[variant],
-        sizes[size],
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};
 
 interface SortableIntervalCardProps {
   key?: React.Key;
@@ -1146,8 +1053,31 @@ export default function App() {
   // Compute color groups from intervals
   const colorGroups = useMemo(() => buildColorGroups(intervals, audioLibrary), [intervals, audioLibrary]);
 
-  const timerRef = useRef<number | null>(null);
-  const lastTickRef = useRef<number>(0);
+  const workoutSyncRef = useRef<WorkoutSyncRef>({
+    intervals,
+    currentIndex,
+    colorGroups,
+    halfwaySoundEnabled,
+  });
+  workoutSyncRef.current = {
+    intervals,
+    currentIndex,
+    colorGroups,
+    halfwaySoundEnabled,
+  };
+
+  useAudioLifecycle();
+  const { startPlaylistForGroup } = useWorkoutAudio();
+  useWorkoutTimer({
+    state,
+    setState,
+    setCountdownValue,
+    setCurrentIndex,
+    setTimeLeft,
+    setTotalTimeElapsed,
+    workoutSyncRef,
+  });
+
   const timelineRef = useRef<HTMLDivElement>(null);
   const countdownTimelineRef = useRef<HTMLDivElement>(null);
   const intervalRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -1465,6 +1395,7 @@ export default function App() {
 
   const startWorkout = () => {
     if (intervals.length === 0) return;
+    void audioEngine.resumeAudioContext();
 
     if (state === "idle" || state === "finished") {
       if (state === "finished") {
@@ -1555,14 +1486,7 @@ export default function App() {
       setTimeLeft(prev.duration);
       audioEngine.stopAll();
       audioEngine.playStart();
-      // Always restart audio on manual skip
-      const prevGroup = getGroupForInterval(colorGroups, prev.color);
-      if (prevGroup && prevGroup.mergedPlaylist.length > 0) {
-        audioEngine.playPlaylist(
-          prevGroup.mergedPlaylist,
-          prevGroup.totalDuration,
-        );
-      }
+      startPlaylistForGroup(colorGroups, prev.color);
     }
   };
 
@@ -1575,14 +1499,7 @@ export default function App() {
       setTimeLeft(next.duration);
       audioEngine.stopAll();
       audioEngine.playStart();
-      // Always restart audio on manual skip
-      const nextGroup = getGroupForInterval(colorGroups, next.color);
-      if (nextGroup && nextGroup.mergedPlaylist.length > 0) {
-        audioEngine.playPlaylist(
-          nextGroup.mergedPlaylist,
-          nextGroup.totalDuration,
-        );
-      }
+      startPlaylistForGroup(colorGroups, next.color);
     } else {
       audioEngine.playWorkoutComplete();
       audioEngine.stopAll();
@@ -1676,127 +1593,12 @@ export default function App() {
     if (state === "running" || state === "countdown" || state === "paused") {
       songPolling = window.setInterval(() => {
         setCurrentSong(audioEngine.getCurrentSongInfo());
-      }, 500);
+      }, 1000);
     } else {
       setCurrentSong(null);
     }
     return () => clearInterval(songPolling);
   }, [state]);
-
-  useEffect(() => {
-    if (state === "countdown") {
-      const timer = setInterval(() => {
-        setCountdownValue((prev) => {
-          const next = prev - 1;
-          if (next > 0) {
-            audioEngine.playCountdown(next);
-            return next;
-          } else {
-            clearInterval(timer);
-            setState("running");
-            setCurrentIndex(0);
-            setTimeLeft(intervals[0].duration);
-            audioEngine.playStart();
-            // Start first group's audio
-            const firstGroup = colorGroups[0];
-            if (firstGroup && firstGroup.mergedPlaylist.length > 0) {
-              audioEngine.playPlaylist(
-                firstGroup.mergedPlaylist,
-                firstGroup.totalDuration,
-              );
-            }
-            return 0;
-          }
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [state, intervals, colorGroups]);
-
-  useEffect(() => {
-    if (state === "running") {
-      const tick = (now: number) => {
-        if (!lastTickRef.current) lastTickRef.current = now;
-        const delta = now - lastTickRef.current;
-
-        if (delta >= 1000) {
-          setTimeLeft((prev) => {
-            const next = prev - 1;
-
-            // Audio Cues
-            const shouldPlayHalfway =
-              currentInterval.halfwayAlert ?? halfwaySoundEnabled;
-            if (
-              shouldPlayHalfway &&
-              next === Math.floor(currentInterval.duration / 2)
-            ) {
-              audioEngine.playMiddle();
-            }
-            if (next <= 5 && next > 0) {
-              audioEngine.playCountdown(next);
-            }
-
-            if (next <= 0) {
-              if (currentIndex < intervals.length - 1) {
-                audioEngine.playEnd();
-
-                const nextIndex = currentIndex + 1;
-                const nextInterval = intervals[nextIndex];
-                const currentInterval = intervals[currentIndex];
-                const isSameColor = nextInterval.color === currentInterval.color;
-
-                setCurrentIndex(nextIndex);
-
-                if (isSameColor) {
-                  // Same color group - continue playing without stopping
-                  setTimeout(() => {
-                    audioEngine.playStart();
-                  }, 500);
-                } else {
-                  // Different color group - stop and start new group audio
-                  audioEngine.stopAll();
-                  setTimeout(() => {
-                    audioEngine.playStart();
-                    const nextGroup = getGroupForInterval(colorGroups, nextInterval.color);
-                    if (nextGroup && nextGroup.mergedPlaylist.length > 0) {
-                      audioEngine.playPlaylist(
-                        nextGroup.mergedPlaylist,
-                        nextGroup.totalDuration,
-                      );
-                    }
-                  }, 500);
-                }
-                return nextInterval.duration;
-              } else {
-                audioEngine.playWorkoutComplete();
-                audioEngine.stopAll();
-                setState("finished");
-                return 0;
-              }
-            }
-            return next;
-          });
-          setTotalTimeElapsed((prev) => prev + 1);
-          lastTickRef.current = now;
-        }
-        timerRef.current = requestAnimationFrame(tick);
-      };
-      timerRef.current = requestAnimationFrame(tick);
-    } else {
-      if (timerRef.current) cancelAnimationFrame(timerRef.current);
-      lastTickRef.current = 0;
-    }
-    return () => {
-      if (timerRef.current) cancelAnimationFrame(timerRef.current);
-    };
-  }, [
-    state,
-    currentIndex,
-    currentInterval,
-    intervals,
-    colorGroups,
-    halfwaySoundEnabled,
-  ]);
 
   // Auto-scroll countdown timeline to active interval
   useEffect(() => {
