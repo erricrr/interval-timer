@@ -9,6 +9,7 @@
   --color-text: #ffffff;
   --color-text-muted: rgba(255, 255, 255, 0.5);   /* unchanged, fine */
   --color-text-subtle: rgba(255, 255, 255, 0.45); /* raised: 0.25 → 0.45 (2.3 → 5.6:1) */
+  --color-scrollbar: rgba(255, 255, 255, 0.25);   /* transparent white */
   --font-mono: "JetBrains Mono", "Roboto Mono", monospace;
 }
 
@@ -20,6 +21,8 @@
   --color-text: #2d2835;
   --color-text-muted: rgba(45, 40, 53, 0.8);   /* unchanged, fine */
   --color-text-subtle: rgba(45, 40, 53, 0.65); /* raised: 0.5 → 0.65 (4.0 → 5.2:1) */
+  --color-scrollbar: rgba(208, 205, 213, 0.9); /* light gray - visible against light bg and colorful bars */
+
 }
 
 /* @theme block stays the same */
@@ -32,6 +35,7 @@
   --color-text: var(--color-text);
   --color-text-muted: var(--color-text-muted);
   --color-text-subtle: var(--color-text-subtle);
+  --color-scrollbar: var(--color-scrollbar);
   --font-mono: "JetBrains Mono", "Roboto Mono", monospace;
 }
 
@@ -71,7 +75,7 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--color-text-subtle);
+  background: var(--color-scrollbar);
   border-radius: 3px;
 }
 

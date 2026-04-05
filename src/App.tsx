@@ -2154,7 +2154,7 @@ export default function App() {
                                   ? interval.color
                                   : isPast
                                     ? `${interval.color}60`
-                                    : "rgba(255,255,255,0.1)",
+                                    : "var(--color-text-subtle)",
                               }}
                             />
                             <p
@@ -2163,8 +2163,8 @@ export default function App() {
                                 color: isActive
                                   ? interval.color
                                   : isPast
-                                    ? "rgba(255,255,255,0.5)"
-                                    : "rgba(255,255,255,0.3)",
+                                    ? "var(--color-text-muted)"
+                                    : "var(--color-text-subtle)",
                               }}
                             >
                               {interval.name}
