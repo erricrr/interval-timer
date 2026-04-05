@@ -1897,7 +1897,16 @@ export default function App() {
         {/* Countdown Overlay - Outside main */}
         {state === "countdown" && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="glass p-6 rounded-[2rem] flex flex-col justify-center items-center text-center min-h-[320px] max-w-md w-full">
+            <div className="glass p-6 rounded-[2rem] flex flex-col justify-center items-center text-center min-h-[320px] max-w-md w-full relative">
+              {/* Cancel Button */}
+              <button
+                onClick={resetWorkout}
+                className="absolute top-6 right-6 p-3 glass rounded-full text-text-muted hover:text-text transition-colors z-20"
+                title="Cancel Countdown"
+              >
+                <X size={24} />
+              </button>
+
               <motion.div
                 key={countdownValue}
                 initial={{ scale: 2, opacity: 0 }}
