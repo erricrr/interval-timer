@@ -1509,6 +1509,16 @@ export default function App() {
     }
   };
 
+  const skipTrack = (direction: "previous" | "next") => {
+    const didSkip =
+      direction === "previous"
+        ? audioEngine.skipToPreviousTrack()
+        : audioEngine.skipToNextTrack();
+    if (didSkip) {
+      setCurrentSong(audioEngine.getCurrentSongInfo());
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -2187,51 +2197,71 @@ export default function App() {
                   </div>
 
                   {currentSong && (
-                    <div className="glass bg-text-subtle/5 p-4 rounded-2xl text-left">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-[10px] font-mono text-text-subtle/70 uppercase tracking-wider flex items-center gap-1.5">
-                          {musicMuted ? (
-                            <>
-                              <VolumeX size={11} className="text-text-subtle/50" />
-                              <span>Muted</span>
-                            </>
-                          ) : (
-                            <>
-                              <Music size={11} style={{ color: themeColor }} />
-                              <span>Now Playing</span>
-                            </>
-                          )}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => skipTrack("previous")}
+                        className="w-10 h-10 rounded-full shrink-0"
+                        title="Previous Track"
+                      >
+                        <SkipBack size={18} />
+                      </Button>
+                      <div className="glass bg-text-subtle/5 p-4 rounded-2xl text-left flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-[10px] font-mono text-text-subtle/70 uppercase tracking-wider flex items-center gap-1.5">
+                            {musicMuted ? (
+                              <>
+                                <VolumeX size={11} className="text-text-subtle/50" />
+                                <span>Muted</span>
+                              </>
+                            ) : (
+                              <>
+                                <Music size={11} style={{ color: themeColor }} />
+                                <span>Now Playing</span>
+                              </>
+                            )}
+                          </p>
+                          <span className="text-[10px] font-mono text-text-subtle/30">
+                            {currentSong.index + 1} / {currentSong.totalSongs}
+                          </span>
+                        </div>
+                        <p className="text-sm font-bold truncate mb-2">
+                          {currentSong.name}
                         </p>
-                        <span className="text-[10px] font-mono text-text-subtle/30">
-                          {currentSong.index + 1} / {currentSong.totalSongs}
-                        </span>
+                        <div className="w-full h-1.5 bg-text-subtle/10 rounded-full overflow-hidden mb-1">
+                          <div
+                            className="h-full transition-all duration-500"
+                            style={{
+                              width: `${(currentSong.currentTime / currentSong.duration) * 100}%`,
+                              backgroundColor: themeColor,
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[10px] font-mono text-text-subtle/40">
+                          <span>
+                            {Math.floor(currentSong.currentTime / 60)}:
+                            {Math.floor(currentSong.currentTime % 60)
+                              .toString()
+                              .padStart(2, "0")}
+                          </span>
+                          <span>
+                            {Math.floor(currentSong.duration / 60)}:
+                            {Math.floor(currentSong.duration % 60)
+                              .toString()
+                              .padStart(2, "0")}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-sm font-bold truncate mb-2">
-                        {currentSong.name}
-                      </p>
-                      <div className="w-full h-1.5 bg-text-subtle/10 rounded-full overflow-hidden mb-1">
-                        <div
-                          className="h-full transition-all duration-500"
-                          style={{
-                            width: `${(currentSong.currentTime / currentSong.duration) * 100}%`,
-                            backgroundColor: themeColor,
-                          }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[10px] font-mono text-text-subtle/40">
-                        <span>
-                          {Math.floor(currentSong.currentTime / 60)}:
-                          {Math.floor(currentSong.currentTime % 60)
-                            .toString()
-                            .padStart(2, "0")}
-                        </span>
-                        <span>
-                          {Math.floor(currentSong.duration / 60)}:
-                          {Math.floor(currentSong.duration % 60)
-                            .toString()
-                            .padStart(2, "0")}
-                        </span>
-                      </div>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => skipTrack("next")}
+                        className="w-10 h-10 rounded-full shrink-0"
+                        title="Next Track"
+                      >
+                        <SkipForward size={18} />
+                      </Button>
                     </div>
                   )}
                 </div>

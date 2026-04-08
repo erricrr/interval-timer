@@ -373,6 +373,39 @@ class AudioEngine {
     }
   }
 
+  private jumpPlaylistBy(step: number): boolean {
+    if (!this.playlistState) return false;
+    const playlistLength = this.playlistState.playlist.length;
+    if (playlistLength === 0) return false;
+
+    const normalizedIndex =
+      (this.playlistState.currentIndex + step + playlistLength) % playlistLength;
+    this.playlistState.currentIndex = normalizedIndex;
+    this.playlistState.currentOffset = 0;
+    if (this.playlistState.isPaused) {
+      // Keep paused state intact: swap loaded track without starting playback.
+      const track = this.playlistState.playlist[this.playlistState.currentIndex];
+      const entry = this.trackEntries.get(track.audioId);
+      if (!entry?.url) return true;
+      this.ensurePlaylistAudio();
+      const el = this.playlistAudio!;
+      this.currentPlaylistTrackId = track.audioId;
+      el.src = entry.url;
+      el.load();
+      return true;
+    }
+    this.playNextInPlaylist();
+    return true;
+  }
+
+  skipToNextTrack(): boolean {
+    return this.jumpPlaylistBy(1);
+  }
+
+  skipToPreviousTrack(): boolean {
+    return this.jumpPlaylistBy(-1);
+  }
+
   private playlistTotalDuration(playlist: PlaylistTrack[]): number {
     return playlist.reduce((acc, t) => {
       const d = this.trackEntries.get(t.audioId)?.duration ?? 0;
