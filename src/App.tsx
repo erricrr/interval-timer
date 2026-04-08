@@ -1392,6 +1392,10 @@ export default function App() {
     () => intervals.reduce((acc, i) => acc + i.duration, 0),
     [intervals],
   );
+  const remainingTotalDuration = Math.max(0, totalDuration - totalTimeElapsed);
+  const safeTimeLeft = Math.max(0, timeLeft);
+  const currentIntervalProgress =
+    currentInterval.duration > 0 ? safeTimeLeft / currentInterval.duration : 0;
 
   const startWorkout = () => {
     if (intervals.length === 0) return;
@@ -1776,7 +1780,7 @@ export default function App() {
                   {state === "running" ||
                   state === "paused" ||
                   state === "countdown"
-                    ? `${Math.floor((totalDuration - totalTimeElapsed) / 60)}:${((totalDuration - totalTimeElapsed) % 60).toString().padStart(2, "0")}`
+                    ? `${Math.floor(remainingTotalDuration / 60)}:${(remainingTotalDuration % 60).toString().padStart(2, "0")}`
                     : `${Math.floor(totalDuration / 60)}:${(totalDuration % 60).toString().padStart(2, "0")}`}
                 </p>
               </div>
@@ -2046,7 +2050,7 @@ export default function App() {
                           2 *
                           Math.PI *
                           45 *
-                          (1 - timeLeft / currentInterval.duration),
+                          (1 - currentIntervalProgress),
                       }}
                       transition={{
                         stroke: { duration: 0.5 },
@@ -2059,8 +2063,8 @@ export default function App() {
 
                   <div className="flex flex-col items-center z-10 px-2">
                     <p className="text-5xl font-mono font-black tabular-nums text-text leading-none">
-                      {Math.floor(timeLeft / 60)}:
-                      {(timeLeft % 60).toString().padStart(2, "0")}
+                      {Math.floor(safeTimeLeft / 60)}:
+                      {(safeTimeLeft % 60).toString().padStart(2, "0")}
                     </p>
                     <p className="text-[9px] font-mono text-text-subtle/70 uppercase tracking-[0.2em] mt-1.5">
                       LEFT

@@ -77,7 +77,7 @@ export function useWorkoutTimer({
 
     const id = window.setInterval(() => {
       setTimeLeft((prev) => {
-        const next = prev - 1;
+        const next = Math.max(0, prev - 1);
         const w = workoutSyncRef.current;
         const currentInterval = w.intervals[w.currentIndex] || w.intervals[0];
 
