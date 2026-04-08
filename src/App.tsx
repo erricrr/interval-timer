@@ -1519,6 +1519,20 @@ export default function App() {
     }
   };
 
+  const toggleCurrentIntervalHalfwayAlert = () => {
+    const effectiveEnabled =
+      currentInterval.halfwayAlert ?? halfwaySoundEnabled;
+    const nextEnabled = !effectiveEnabled;
+
+    setIntervals((prev) =>
+      prev.map((interval, index) =>
+        index === currentIndex
+          ? { ...interval, halfwayAlert: nextEnabled }
+          : interval,
+      ),
+    );
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -2051,6 +2065,40 @@ export default function App() {
                     <p className="text-[9px] font-mono text-text-subtle/70 uppercase tracking-[0.2em] mt-1.5">
                       LEFT
                     </p>
+                    {(state === "running" || state === "paused") && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <span className="text-[9px] font-mono uppercase tracking-wider text-text-subtle/70">
+                          50%
+                        </span>
+                        <button
+                          onClick={toggleCurrentIntervalHalfwayAlert}
+                          className={cn(
+                            "w-9 h-5 rounded-full relative flex items-center",
+                            (currentInterval.halfwayAlert ?? halfwaySoundEnabled)
+                              ? "bg-accent"
+                              : "bg-text-subtle/40",
+                          )}
+                          aria-label={
+                            (currentInterval.halfwayAlert ?? halfwaySoundEnabled)
+                              ? "Disable current interval halfway alert"
+                              : "Enable current interval halfway alert"
+                          }
+                          aria-pressed={
+                            currentInterval.halfwayAlert ?? halfwaySoundEnabled
+                          }
+                          title="Toggle 50% alert for current interval"
+                        >
+                          <span
+                            className={cn(
+                              "w-3 h-3 rounded-full bg-text",
+                              (currentInterval.halfwayAlert ?? halfwaySoundEnabled)
+                                ? "translate-x-5"
+                                : "translate-x-1",
+                            )}
+                          />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
