@@ -1396,6 +1396,10 @@ export default function App() {
   const safeTimeLeft = Math.max(0, timeLeft);
   const currentIntervalProgress =
     currentInterval.duration > 0 ? safeTimeLeft / currentInterval.duration : 0;
+  const clampedIntervalProgress = Math.min(
+    1,
+    Math.max(0, currentIntervalProgress),
+  );
 
   const startWorkout = () => {
     if (intervals.length === 0) return;
@@ -2050,11 +2054,14 @@ export default function App() {
                           2 *
                           Math.PI *
                           45 *
-                          (1 - currentIntervalProgress),
+                          (1 - clampedIntervalProgress),
                       }}
                       transition={{
                         stroke: { duration: 0.5 },
-                        strokeDashoffset: { duration: 1, ease: "linear" },
+                        strokeDashoffset:
+                          state === "running"
+                            ? { duration: 1, ease: "linear" }
+                            : { duration: 0 },
                       }}
                       strokeLinecap="round"
                       strokeDasharray={2 * Math.PI * 45}
