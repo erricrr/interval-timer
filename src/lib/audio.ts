@@ -79,9 +79,14 @@ class AudioEngine {
     }
   }
 
-  private syncPlaylistVolume() {
+  private applyPlaylistOutputState() {
     if (!this.playlistAudio) return;
+    this.playlistAudio.muted = this.musicMuted;
     this.playlistAudio.volume = this.musicMuted ? 0 : MUSIC_VOLUME;
+  }
+
+  private syncPlaylistVolume() {
+    this.applyPlaylistOutputState();
   }
 
   /** Call synchronously from Start / Resume tap — required for iOS to allow play() after countdown */
@@ -341,6 +346,7 @@ class AudioEngine {
 
     this.ensurePlaylistAudio();
     const el = this.playlistAudio!;
+    this.applyPlaylistOutputState();
     el.onended = this.handlePlaylistEnded;
 
     const offset = this.playlistState.currentOffset;
@@ -366,6 +372,7 @@ class AudioEngine {
     if (this.currentPlaylistTrackId !== track.audioId) {
       this.currentPlaylistTrackId = track.audioId;
       el.src = entry.url;
+      this.applyPlaylistOutputState();
       el.addEventListener("loadedmetadata", tryPlay, { once: true });
       el.load();
     } else {
@@ -391,6 +398,7 @@ class AudioEngine {
       const el = this.playlistAudio!;
       this.currentPlaylistTrackId = track.audioId;
       el.src = entry.url;
+      this.applyPlaylistOutputState();
       el.load();
       return true;
     }

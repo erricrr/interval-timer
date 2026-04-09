@@ -2597,9 +2597,7 @@ export default function App() {
                   </p>
                 </div>
                 <button
-                  onClick={() =>
-                    setMusicMuted(!musicMuted)
-                  }
+                  onClick={() => setMusicMuted((prev) => !prev)}
                   className={cn(
                     "w-11 h-6 rounded-full relative flex items-center",
                     musicMuted ? "bg-accent" : "bg-text-subtle/40",
