@@ -906,6 +906,18 @@ const PlaylistDrawer = ({
       </Modal>
 
       {/* Delete Audio Confirmation */}
+      <AnimatePresence>
+        {audioToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setAudioToDelete(null)}
+            className="fixed inset-0 z-[150] bg-bg/60 backdrop-blur-sm cursor-pointer"
+          />
+        )}
+      </AnimatePresence>
       <ConfirmModal
         isOpen={audioToDelete !== null}
         onClose={() => setAudioToDelete(null)}
@@ -918,6 +930,8 @@ const PlaylistDrawer = ({
           }
         }}
         confirmVariant="danger"
+        showOverlay={false}
+        className="z-[200]"
       />
     </>
   );
@@ -2748,6 +2762,18 @@ export default function App() {
         </Modal>
 
         {/* Delete Workout Confirmation */}
+        <AnimatePresence>
+          {workoutToDelete && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setWorkoutToDelete(null)}
+              className="fixed inset-0 z-[150] bg-bg/60 backdrop-blur-sm cursor-pointer"
+            />
+          )}
+        </AnimatePresence>
         <ConfirmModal
           isOpen={workoutToDelete !== null}
           onClose={() => setWorkoutToDelete(null)}
@@ -2760,6 +2786,8 @@ export default function App() {
             }
           }}
           confirmVariant="danger"
+          showOverlay={false}
+          className="z-[200]"
         />
 
         {/* New Workout Confirmation Dialog */}

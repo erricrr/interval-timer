@@ -17,6 +17,7 @@ interface ModalProps {
   showCloseButton?: boolean;
   closeButtonClassName?: string;
   backdropClassName?: string;
+  showOverlay?: boolean;
   style?: React.CSSProperties;
 }
 
@@ -44,6 +45,7 @@ export function Modal({
   showCloseButton = true,
   closeButtonClassName,
   backdropClassName,
+  showOverlay = true,
   style,
 }: ModalProps) {
   // Lock body scroll when modal is open
@@ -81,11 +83,13 @@ export function Modal({
   if (variant === "drawer") {
     return (
       <>
-        <AnimatePresence>
-          {isOpen && (
-            <Overlay onClick={onClose} className={cn("z-[100]", backdropClassName)} />
-          )}
-        </AnimatePresence>
+        {showOverlay && (
+          <AnimatePresence>
+            {isOpen && (
+              <Overlay onClick={onClose} className={cn("z-[100]", backdropClassName)} />
+            )}
+          </AnimatePresence>
+        )}
         <AnimatePresence>
           {isOpen && (
             <motion.div
@@ -118,10 +122,14 @@ export function Modal({
 
   if (variant === "fullscreen") {
     return (
-      <AnimatePresence>
-        {isOpen && (
-          <>
-            <Overlay className={cn("z-[100]", backdropClassName)} />
+      <>
+        {showOverlay && (
+          <AnimatePresence>
+            {isOpen && <Overlay className={cn("z-[100]", backdropClassName)} />}
+          </AnimatePresence>
+        )}
+        <AnimatePresence>
+          {isOpen && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -149,18 +157,22 @@ export function Modal({
                 </div>
               </div>
             </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      </>
     );
   }
 
   // centered variant (default)
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <Overlay onClick={onClose} className={cn("z-[100]", backdropClassName)} />
+    <>
+      {showOverlay && (
+        <AnimatePresence>
+          {isOpen && <Overlay onClick={onClose} className={cn("z-[100]", backdropClassName)} />}
+        </AnimatePresence>
+      )}
+      <AnimatePresence>
+        {isOpen && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -197,9 +209,9 @@ export function Modal({
               {children}
             </div>
           </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
