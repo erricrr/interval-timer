@@ -34,7 +34,6 @@ import {
   Bell,
   Sun,
   Moon,
-  Cloud,
   CheckCircle2,
   Loader2,
   Smartphone,
@@ -2625,7 +2624,7 @@ export default function App() {
                   <span className="text-xs text-text-subtle/60">
                     Settings are automatically saved
                   </span>
-                  <div className="flex items-center gap-1.5 text-xs text-text-subtle/50">
+                  <div className="flex items-center gap-1.5 text-xs text-accent">
                     {!user ? (
                       <>
                         <Smartphone size={14} />
@@ -2638,8 +2637,7 @@ export default function App() {
                       </>
                     ) : (
                       <>
-                        <Cloud size={14} />
-                        <CheckCircle2 size={12} className="text-accent -ml-1" />
+                        <CheckCircle2 size={12} />
                         <span>Synced to account</span>
                       </>
                     )}
