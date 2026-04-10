@@ -45,6 +45,7 @@ import { useClickOutside } from "./hooks/useClickOutside";
 import { LoginButton } from "./components/LoginButton";
 import { Modal, ConfirmModal, LoginModal } from "./components/Modal";
 import { Button, CloseButton, type ButtonProps } from "./components/Button";
+import { Overlay } from "./components/Overlay";
 import { auth, onAuthStateChanged } from "./lib/firebase";
 import {
   saveSettings,
@@ -1928,7 +1929,9 @@ export default function App() {
 
         {/* Countdown Overlay - Outside main */}
         {state === "countdown" && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <>
+            <Overlay />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="glass p-6 rounded-[2rem] flex flex-col justify-center items-center text-center min-h-[320px] max-w-md w-full relative">
               {/* Cancel Button */}
               <button
@@ -1988,11 +1991,14 @@ export default function App() {
               )}
             </div>
           </div>
+        </>
         )}
 
         {/* Workout Timer Overlay - Outside main */}
         {(state === "running" || state === "paused" || state === "finished") && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <>
+            <Overlay />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="glass p-6 rounded-[2rem] flex flex-col justify-center items-center text-center relative overflow-hidden w-full max-w-md max-h-[90vh] overflow-y-auto">
                 {/* Exit Button */}
                 <button
@@ -2326,7 +2332,8 @@ export default function App() {
                 </div>
               </div>
             </div>
-          )}
+          </>
+        )}
 
         {/* Settings Modal */}
         <Modal

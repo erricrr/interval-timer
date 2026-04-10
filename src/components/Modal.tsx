@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { cn } from "../lib/utils";
+import { Overlay } from "./Overlay";
 
 type ModalVariant = "centered" | "drawer" | "fullscreen";
 
@@ -76,26 +77,13 @@ export function Modal({
     }
   }, [isOpen, onClose]);
 
-  const backdropContent = (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className={cn(
-        "fixed inset-0 bg-text-subtle/60 backdrop-blur-sm z-[100]",
-        backdropClassName
-      )}
-      onClick={onClose}
-    />
-  );
 
   if (variant === "drawer") {
     return (
       <AnimatePresence>
         {isOpen && (
           <>
-            {backdropContent}
+            <Overlay onClick={onClose} className={cn("z-[100]", backdropClassName)} />
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
@@ -127,32 +115,36 @@ export function Modal({
     return (
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className={cn(
-              "fixed inset-0 z-[100] bg-text-subtle/60 backdrop-blur-sm p-3 sm:p-4 flex flex-col items-center justify-center",
-              className
-            )}
-          >
-            <div
+          <>
+            <Overlay className={cn("z-[100]", backdropClassName)} />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               className={cn(
-                "w-full max-w-[calc(100vw-1.5rem)] sm:max-w-lg md:max-w-xl lg:max-w-2xl flex flex-col h-full max-h-[92vh] sm:max-h-[90vh] glass p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] neo-shadow relative",
-                contentClassName
+                "fixed inset-0 z-[101] p-3 sm:p-4 flex flex-col items-center justify-center pointer-events-none",
+                className
               )}
             >
-              {(title || showCloseButton) && (
-                <div className="flex justify-between items-center mb-4 sm:mb-6 shrink-0">
-                  {title && <div className="flex-1 min-w-0">{title}</div>}
-                  {showCloseButton && <CloseButton onClose={onClose} className={closeButtonClassName} />}
+              <div
+                className={cn(
+                  "w-full max-w-[calc(100vw-1.5rem)] sm:max-w-lg md:max-w-xl lg:max-w-2xl flex flex-col h-full max-h-[92vh] sm:max-h-[90vh] glass p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] neo-shadow relative pointer-events-auto",
+                  contentClassName
+                )}
+              >
+                {(title || showCloseButton) && (
+                  <div className="flex justify-between items-center mb-4 sm:mb-6 shrink-0">
+                    {title && <div className="flex-1 min-w-0">{title}</div>}
+                    {showCloseButton && <CloseButton onClose={onClose} className={closeButtonClassName} />}
+                  </div>
+                )}
+                <div className="flex-1 overflow-y-auto pr-2 sm:pr-4 custom-scrollbar">
+                  {children}
                 </div>
-              )}
-              <div className="flex-1 overflow-y-auto pr-2 sm:pr-4 custom-scrollbar">
-                {children}
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     );
@@ -163,7 +155,7 @@ export function Modal({
     <AnimatePresence>
       {isOpen && (
         <>
-          {backdropContent}
+          <Overlay onClick={onClose} className={cn("z-[100]", backdropClassName)} />
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
