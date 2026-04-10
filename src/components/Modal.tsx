@@ -80,11 +80,16 @@ export function Modal({
 
   if (variant === "drawer") {
     return (
-      <AnimatePresence>
-        {isOpen && (
-          <>
+      <>
+        <AnimatePresence>
+          {isOpen && (
             <Overlay onClick={onClose} className={cn("z-[100]", backdropClassName)} />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {isOpen && (
             <motion.div
+              key="drawer"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -105,9 +110,9 @@ export function Modal({
                 {children}
               </div>
             </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      </>
     );
   }
 

@@ -691,6 +691,7 @@ const IntervalCard = ({
 };
 
 interface PlaylistDrawerProps {
+  isOpen: boolean;
   interval: Interval;
   colorGroups: ColorGroup[];
   audioLibrary: { id: string; name: string }[];
@@ -702,6 +703,7 @@ interface PlaylistDrawerProps {
 }
 
 const PlaylistDrawer = ({
+  isOpen,
   interval,
   colorGroups,
   audioLibrary,
@@ -743,7 +745,7 @@ const PlaylistDrawer = ({
   return (
     <>
       <Modal
-        isOpen={true}
+        isOpen={isOpen}
         onClose={onClose}
         variant="drawer"
         title={titleContent}
@@ -901,20 +903,6 @@ const PlaylistDrawer = ({
             )}
           </div>
         </section>
-
-        {/* Done Button */}
-        <div className="p-4 sm:p-6 border-t border-text-subtle/10">
-          <Button
-            variant="solid"
-            className="w-full py-4 bg-accent text-bg font-black rounded-2xl uppercase tracking-[0.2em] hover:scale-[1.02] transition-transform"
-            onClick={onClose}
-            style={{
-              backgroundColor: interval.color,
-            }}
-          >
-            Done
-          </Button>
-        </div>
       </Modal>
 
       {/* Delete Audio Confirmation */}
@@ -2708,25 +2696,22 @@ export default function App() {
           </section>
         </Modal>
 
-        <AnimatePresence>
-          {editingIntervalId && (
-            <PlaylistDrawer
-              interval={intervals.find((i) => i.id === editingIntervalId)!}
-              colorGroups={colorGroups}
-              audioLibrary={audioLibrary}
-              onClose={() => setEditingIntervalId(null)}
-              onUpdatePlaylist={(playlist) => {
-                const interval = intervals.find((i) => i.id === editingIntervalId);
-                if (interval) {
-                  updatePlaylistForColorGroup(interval.color, playlist);
-                }
-              }}
-              onFileUpload={handleFileUpload}
-              onRemoveAudio={removeAudio}
-              isUploading={isUploading}
-            />
-          )}
-        </AnimatePresence>
+        <PlaylistDrawer
+          isOpen={!!editingIntervalId}
+          interval={intervals.find((i) => i.id === editingIntervalId) || intervals[0]}
+          colorGroups={colorGroups}
+          audioLibrary={audioLibrary}
+          onClose={() => setEditingIntervalId(null)}
+          onUpdatePlaylist={(playlist) => {
+            const interval = intervals.find((i) => i.id === editingIntervalId);
+            if (interval) {
+              updatePlaylistForColorGroup(interval.color, playlist);
+            }
+          }}
+          onFileUpload={handleFileUpload}
+          onRemoveAudio={removeAudio}
+          isUploading={isUploading}
+        />
 
         {/* Interval Notes Modal */}
         <Modal
