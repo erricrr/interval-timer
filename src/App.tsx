@@ -24,7 +24,6 @@ import {
   FolderOpen,
   SkipForward,
   SkipBack,
-  CheckCircle2,
   GripVertical,
   MoreVertical,
   Trash2,
@@ -35,6 +34,10 @@ import {
   Bell,
   Sun,
   Moon,
+  Cloud,
+  CheckCircle2,
+  Loader2,
+  Smartphone,
 } from "lucide-react";
 import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup, PlaylistTrack } from "./lib/utils";
 import { audioEngine } from "./lib/audio";
@@ -991,7 +994,7 @@ export default function App() {
   const alarmFileInputRef = useRef<HTMLInputElement>(null);
 
   // Save confirmation states
-  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [timelineSaved, setTimelineSaved] = useState(false);
 
   // Theme state - initialize from system preference or localStorage
@@ -1290,6 +1293,31 @@ export default function App() {
     audioEngine.setAlarmPreset(alarmPreset);
     audioEngine.setMusicMuted(musicMuted);
   }, [alarmVolume, alarmPreset, customAlarmName, halfwaySoundEnabled, musicMuted]);
+
+  // Auto-save alarm settings to Firebase for logged-in users (debounced)
+  useEffect(() => {
+    if (!user) return;
+
+    setIsSavingSettings(true);
+    const timeoutId = setTimeout(async () => {
+      try {
+        await saveSettings(user.uid, {
+          alarmVolume,
+          alarmPreset,
+          customAlarmName,
+          customAlarmStoragePath: null,
+          halfwaySoundEnabled,
+          musicMuted,
+        });
+      } catch (err) {
+        console.error("Failed to auto-save settings to Firebase:", err);
+      } finally {
+        setIsSavingSettings(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [user, alarmVolume, alarmPreset, customAlarmName, halfwaySoundEnabled, musicMuted]);
 
   const saveCurrentWorkout = async () => {
     const newWorkout = {
@@ -2439,7 +2467,7 @@ export default function App() {
 
               {/* Preset Selector */}
               <div className="space-y-3">
-                <label className="text-sm text-text-muted/90">
+                <label className="text-sm text-text-muted/90 block mb-1">
                   Alarm Sound
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -2557,42 +2585,6 @@ export default function App() {
                 Test Alarm Sound
               </button>
 
-              {/* Halfway Sound Toggle */}
-              <div className="flex items-center justify-between py-3 border-t border-text-subtle/10">
-                <div>
-                  <label className="text-sm text-text-muted/90">
-                    Halfway Alert
-                  </label>
-                  <p className="text-[10px] text-text-subtle/50">
-                    Sound when interval reaches 50%
-                  </p>
-                </div>
-                <button
-                  onClick={() =>
-                    setHalfwaySoundEnabled(!halfwaySoundEnabled)
-                  }
-                  className={cn(
-                    "w-11 h-6 rounded-full relative flex items-center",
-                    halfwaySoundEnabled ? "bg-accent" : "bg-text-subtle/40",
-                  )}
-                  aria-label={
-                    halfwaySoundEnabled
-                      ? "Disable halfway alert"
-                      : "Enable halfway alert"
-                  }
-                  aria-pressed={halfwaySoundEnabled}
-                >
-                  <span
-                    className={cn(
-                      "w-4 h-4 rounded-full bg-text",
-                      halfwaySoundEnabled
-                        ? "translate-x-6"
-                        : "translate-x-1",
-                    )}
-                  />
-                </button>
-              </div>
-
               {/* Mute All Tracks Toggle */}
               <div className="flex items-center justify-between py-3 border-t border-text-subtle/10">
                 <div>
@@ -2627,29 +2619,33 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Save Settings Button */}
-              {user && (
-                <div className="pt-4 border-t border-text-subtle/10">
-                  <button
-                    onClick={async () => {
-                      await saveSettings(user.uid, {
-                        alarmVolume,
-                        alarmPreset,
-                        customAlarmName,
-                        customAlarmStoragePath: null,
-                        halfwaySoundEnabled,
-                        musicMuted,
-                      });
-                      setSettingsSaved(true);
-                      setTimeout(() => setSettingsSaved(false), 2000);
-                    }}
-                    className="w-full py-3 bg-accent text-bg font-bold rounded-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 shadow-lg shadow-accent/20"
-                  >
-                    <Save size={16} />
-                    {settingsSaved ? "Saved!" : "Save"}
-                  </button>
+              {/* Auto-save Status Indicator */}
+              <div className="pt-4 border-t border-text-subtle/10">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-text-subtle/60">
+                    Settings are automatically saved
+                  </span>
+                  <div className="flex items-center gap-1.5 text-xs text-text-subtle/50">
+                    {!user ? (
+                      <>
+                        <Smartphone size={14} />
+                        <span>Saved on this device</span>
+                      </>
+                    ) : isSavingSettings ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Cloud size={14} />
+                        <CheckCircle2 size={12} className="text-accent -ml-1" />
+                        <span>Synced to account</span>
+                      </>
+                    )}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           </section>
 
