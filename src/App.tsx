@@ -1032,8 +1032,16 @@ export default function App() {
 
   // Mobile detection
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  const [isMobileLandscape, setIsMobileLandscape] = useState(
+    () => window.innerWidth > window.innerHeight && window.innerHeight <= 500,
+  );
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+      setIsMobileLandscape(
+        window.innerWidth > window.innerHeight && window.innerHeight <= 500,
+      );
+    };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -2027,42 +2035,37 @@ export default function App() {
         {(state === "running" || state === "paused" || state === "finished") && (
           <>
             <Overlay />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="glass p-6 rounded-[2rem] flex flex-col justify-center items-center text-center relative overflow-hidden w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div
+              className={cn(
+                "fixed inset-0 z-50 flex items-center justify-center p-4",
+                isMobileLandscape && "p-2",
+              )}
+            >
+            <div
+              className={cn(
+                "glass p-6 rounded-[2rem] flex flex-col justify-center items-center text-center relative overflow-hidden w-full max-w-md max-h-[90vh] overflow-y-auto",
+                isMobileLandscape && "p-3 max-h-[96vh]",
+              )}
+            >
                 {/* Exit Button */}
                 <button
                   onClick={resetWorkout}
-                  className="absolute top-6 right-6 p-3 glass rounded-full text-text-muted hover:text-text transition-colors z-20"
+                  className={cn(
+                    "absolute top-6 right-6 p-3 glass rounded-full text-text-muted hover:text-text transition-colors z-20",
+                    isMobileLandscape && "top-3 right-3 p-2",
+                  )}
                   title="Exit Workout"
                 >
-                  <X size={24} />
+                  <X size={isMobileLandscape ? 18 : 24} />
                 </button>
-
-                {/* Timer Display */}
-                <div className="flex flex-col items-center mb-4">
-                  <p className="text-[10px] font-mono text-text-subtle uppercase tracking-[0.3em] mb-2">
-                    {state === "finished" ? "FINISHED" : "NOW"}
-                  </p>
-                  <h1
-                    className="text-3xl font-black text-center mb-1"
-                    style={{ color: themeColor }}
-                  >
-                    {state === "finished"
-                      ? "Nice Work"
-                      : currentInterval.name}
-                  </h1>
-                  {currentIndex < intervals.length - 1 &&
-                    state !== "finished" && (
-                      <p className="text-sm text-text-subtle/70 font-medium">
-                        Next: {intervals[currentIndex + 1].name}
-                      </p>
-                    )}
-                </div>
 
                 {/* Progress Ring */}
                 <div
                   key={currentIndex}
-                  className="relative w-48 h-48 flex items-center justify-center mb-4"
+                  className={cn(
+                    "relative w-48 h-48 flex items-center justify-center mb-4",
+                    isMobileLandscape && "w-36 h-36 mb-2",
+                  )}
                 >
                   <svg
                     viewBox="0 0 100 100"
@@ -2104,22 +2107,77 @@ export default function App() {
                   </svg>
 
                   <div className="flex flex-col items-center z-10 px-2">
-                    <p className="text-5xl font-mono font-black tabular-nums text-text leading-none">
+                    <p
+                      className={cn(
+                        "text-5xl font-mono font-black tabular-nums text-text leading-none",
+                        isMobileLandscape && "text-4xl",
+                      )}
+                    >
                       {Math.floor(safeTimeLeft / 60)}:
                       {(safeTimeLeft % 60).toString().padStart(2, "0")}
                     </p>
-                    <p className="text-[9px] font-mono text-text-subtle/70 uppercase tracking-[0.2em] mt-1.5">
+                    <p
+                      className={cn(
+                        "text-[9px] font-mono text-text-subtle/70 uppercase tracking-[0.2em] mt-1.5",
+                        isMobileLandscape && "text-[8px] mt-1",
+                      )}
+                    >
                       LEFT
                     </p>
+                  </div>
+                </div>
+
+                {(currentInterval.notes || state === "running" || state === "paused") &&
+                  state !== "finished" && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={cn(
+                      "absolute top-6 left-6 z-20 flex flex-col items-start gap-2",
+                      isMobileLandscape && "top-3 left-3 gap-1.5",
+                    )}
+                  >
+                    {currentInterval.notes && (
+                      <Button
+                        variant="accent"
+                        size="xs"
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          window.setTimeout(() => {
+                            setViewingNotesId(currentInterval.id);
+                          }, 0);
+                        }}
+                        className={cn(
+                          "h-7 px-3 text-[10px]",
+                          isMobileLandscape && "h-6 px-2.5 text-[9px]",
+                        )}
+                        title="View Interval Notes"
+                      >
+                        <FileText size={isMobileLandscape ? 10 : 11} />
+                        Notes
+                      </Button>
+                    )}
                     {(state === "running" || state === "paused") && (
-                      <div className="mt-2 flex items-center gap-1.5">
-                        <span className="text-[9px] font-mono uppercase tracking-wider text-text-subtle/70">
+                      <div
+                        className={cn(
+                          "flex items-center gap-1.5",
+                          isMobileLandscape && "gap-1",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "text-[9px] font-mono uppercase tracking-wider text-text-subtle/70",
+                            isMobileLandscape && "text-[8px]",
+                          )}
+                        >
                           50%
                         </span>
                         <button
                           onClick={toggleCurrentIntervalHalfwayAlert}
                           className={cn(
                             "w-9 h-5 rounded-full relative flex items-center",
+                            isMobileLandscape && "w-8 h-[18px]",
                             (currentInterval.halfwayAlert ?? halfwaySoundEnabled)
                               ? "bg-accent"
                               : "bg-text-subtle/40",
@@ -2137,53 +2195,39 @@ export default function App() {
                           <span
                             className={cn(
                               "w-3 h-3 rounded-full bg-text",
+                              isMobileLandscape && "w-2.5 h-2.5",
                               (currentInterval.halfwayAlert ?? halfwaySoundEnabled)
-                                ? "translate-x-5"
+                                ? isMobileLandscape
+                                  ? "translate-x-[14px]"
+                                  : "translate-x-5"
                                 : "translate-x-1",
                             )}
                           />
                         </button>
                       </div>
                     )}
-                  </div>
-                </div>
-
-                {currentInterval.notes && state !== "finished" && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-3 glass border p-2.5 rounded-2xl max-w-md w-full text-center"
-                    style={{
-                      backgroundColor: `${currentInterval.color}10`,
-                      borderColor: `${currentInterval.color}20`,
-                    }}
-                  >
-                    <div
-                      className="flex items-center justify-center gap-2 mb-1.5"
-                      style={{ color: `${currentInterval.color}90` }}
-                    >
-                      <FileText size={11} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">
-                        Interval Notes
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-text-muted/90 italic break-words">
-                      {currentInterval.notes}
-                    </p>
                   </motion.div>
                 )}
 
-                <div className="w-full space-y-4">
-                  <div className="flex justify-center items-center gap-4">
+                <div className={cn("w-full space-y-4", isMobileLandscape && "space-y-2")}>
+                  <div
+                    className={cn(
+                      "flex justify-center items-center gap-4",
+                      isMobileLandscape && "gap-2",
+                    )}
+                  >
                     <Button
                       variant="secondary"
                       size="icon"
                       onClick={previousInterval}
                       disabled={currentIndex === 0 || state === "finished"}
-                      className="w-12 h-12 rounded-full disabled:opacity-20"
+                      className={cn(
+                        "w-12 h-12 rounded-full disabled:opacity-20",
+                        isMobileLandscape && "w-10 h-10",
+                      )}
                       title="Previous Interval"
                     >
-                      <SkipBack size={20} />
+                      <SkipBack size={isMobileLandscape ? 18 : 20} />
                     </Button>
                     <Button
                       variant="white"
@@ -2195,7 +2239,10 @@ export default function App() {
                           state === "running" ? pauseWorkout() : startWorkout();
                         }
                       }}
-                      className="w-16 h-16 rounded-full"
+                      className={cn(
+                        "w-16 h-16 rounded-full",
+                        isMobileLandscape && "w-12 h-12",
+                      )}
                       title={
                         state === "finished"
                           ? "Restart Workout"
@@ -2205,15 +2252,15 @@ export default function App() {
                       }
                     >
                       {state === "finished" ? (
-                        <RotateCcw size={28} />
+                        <RotateCcw size={isMobileLandscape ? 22 : 28} />
                       ) : state === "running" ? (
                         <Pause
-                          size={28}
+                          size={isMobileLandscape ? 22 : 28}
                           fill="currentColor"
                         />
                       ) : (
                         <Play
-                          size={28}
+                          size={isMobileLandscape ? 22 : 28}
                           className="ml-1"
                           fill="currentColor"
                         />
@@ -2224,7 +2271,10 @@ export default function App() {
                       size="icon"
                       onClick={nextInterval}
                       disabled={state === "finished"}
-                      className="w-12 h-12 rounded-full disabled:opacity-20"
+                      className={cn(
+                        "w-12 h-12 rounded-full disabled:opacity-20",
+                        isMobileLandscape && "w-10 h-10",
+                      )}
                       title={
                         currentIndex === intervals.length - 1
                           ? "Finish Workout"
@@ -2232,9 +2282,9 @@ export default function App() {
                       }
                     >
                       {currentIndex === intervals.length - 1 ? (
-                        <CheckCircle2 size={24} />
+                        <CheckCircle2 size={isMobileLandscape ? 20 : 24} />
                       ) : (
-                        <SkipForward size={24} />
+                        <SkipForward size={isMobileLandscape ? 20 : 24} />
                       )}
                     </Button>
                   </div>
@@ -2243,7 +2293,10 @@ export default function App() {
                   <div className="w-full overflow-hidden">
                     <div
                       ref={countdownTimelineRef}
-                      className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar scroll-smooth flex-nowrap"
+                      className={cn(
+                        "flex gap-2 overflow-x-auto pb-2 custom-scrollbar scroll-smooth flex-nowrap",
+                        isMobileLandscape && "gap-1.5 pb-1",
+                      )}
                     >
                       {intervals.map((interval, index) => {
                         const isPast =
@@ -2259,12 +2312,15 @@ export default function App() {
                           <div
                             key={interval.id}
                             ref={(el) => (intervalRefs.current[index] = el)}
-                            className="flex flex-col items-center gap-1.5 flex-shrink-0"
+                            className={cn(
+                              "flex flex-col items-center gap-1.5 flex-shrink-0",
+                              isMobileLandscape && "gap-1",
+                            )}
                           >
                             <div
                               className="h-2 rounded-full transition-all duration-300"
                               style={{
-                                width: "80px",
+                                width: isMobileLandscape ? "60px" : "80px",
                                 backgroundColor: isActive
                                   ? interval.color
                                   : isPast
@@ -2273,7 +2329,10 @@ export default function App() {
                               }}
                             />
                             <p
-                              className="text-[10px] font-medium truncate max-w-[80px] text-center"
+                              className={cn(
+                                "text-[10px] font-medium truncate max-w-[80px] text-center",
+                                isMobileLandscape && "text-[9px] max-w-[60px]",
+                              )}
                               style={{
                                 color: isActive
                                   ? interval.color
@@ -2291,19 +2350,32 @@ export default function App() {
                   </div>
 
                   {currentSong && (
-                    <div className="flex items-center gap-2">
+                    <div className={cn("flex items-center gap-2", isMobileLandscape && "gap-1.5")}>
                       <Button
                         variant="secondary"
                         size="icon"
                         onClick={() => skipTrack("previous")}
-                        className="w-10 h-10 rounded-full shrink-0"
+                        className={cn(
+                          "w-10 h-10 rounded-full shrink-0",
+                          isMobileLandscape && "w-8 h-8",
+                        )}
                         title="Previous Track"
                       >
-                        <SkipBack size={18} />
+                        <SkipBack size={isMobileLandscape ? 16 : 18} />
                       </Button>
-                      <div className="glass bg-text-subtle/5 p-4 rounded-2xl text-left flex-1 min-w-0">
+                      <div
+                        className={cn(
+                          "glass bg-text-subtle/5 p-4 rounded-2xl text-left flex-1 min-w-0",
+                          isMobileLandscape && "p-2.5",
+                        )}
+                      >
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-[10px] font-mono text-text-subtle/70 uppercase tracking-wider flex items-center gap-1.5">
+                          <p
+                            className={cn(
+                              "text-[10px] font-mono text-text-subtle/70 uppercase tracking-wider flex items-center gap-1.5",
+                              isMobileLandscape && "text-[9px] gap-1",
+                            )}
+                          >
                             {musicMuted ? (
                               <>
                                 <VolumeX size={11} className="text-text-subtle/50" />
@@ -2316,14 +2388,24 @@ export default function App() {
                               </>
                             )}
                           </p>
-                          <span className="text-[10px] font-mono text-text-subtle/30">
+                          <span
+                            className={cn(
+                              "text-[10px] font-mono text-text-subtle/30",
+                              isMobileLandscape && "text-[9px]",
+                            )}
+                          >
                             {currentSong.index + 1} / {currentSong.totalSongs}
                           </span>
                         </div>
-                        <p className="text-sm font-bold truncate mb-2">
+                        <p className={cn("text-sm font-bold truncate mb-2", isMobileLandscape && "text-xs mb-1")}>
                           {currentSong.name}
                         </p>
-                        <div className="w-full h-1.5 bg-text-subtle/10 rounded-full overflow-hidden mb-1">
+                        <div
+                          className={cn(
+                            "w-full h-1.5 bg-text-subtle/10 rounded-full overflow-hidden mb-1",
+                            isMobileLandscape && "h-1 mb-0.5",
+                          )}
+                        >
                           <div
                             className="h-full transition-all duration-500"
                             style={{
@@ -2332,7 +2414,12 @@ export default function App() {
                             }}
                           />
                         </div>
-                        <div className="flex justify-between text-[10px] font-mono text-text-subtle/40">
+                        <div
+                          className={cn(
+                            "flex justify-between text-[10px] font-mono text-text-subtle/40",
+                            isMobileLandscape && "text-[9px]",
+                          )}
+                        >
                           <span>
                             {Math.floor(currentSong.currentTime / 60)}:
                             {Math.floor(currentSong.currentTime % 60)
@@ -2351,10 +2438,13 @@ export default function App() {
                         variant="secondary"
                         size="icon"
                         onClick={() => skipTrack("next")}
-                        className="w-10 h-10 rounded-full shrink-0"
+                        className={cn(
+                          "w-10 h-10 rounded-full shrink-0",
+                          isMobileLandscape && "w-8 h-8",
+                        )}
                         title="Next Track"
                       >
-                        <SkipForward size={18} />
+                        <SkipForward size={isMobileLandscape ? 16 : 18} />
                       </Button>
                     </div>
                   )}
