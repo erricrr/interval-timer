@@ -48,6 +48,7 @@ import { LoginButton } from "./components/LoginButton";
 import { Modal, ConfirmModal, LoginModal } from "./components/Modal";
 import { Button, CloseButton, type ButtonProps } from "./components/Button";
 import { Overlay } from "./components/Overlay";
+import { NowPlayingPanel, type SongInfo } from "./components/NowPlayingPanel";
 import { auth, onAuthStateChanged } from "./lib/firebase";
 import {
   saveSettings,
@@ -951,13 +952,7 @@ export default function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [totalTimeElapsed, setTotalTimeElapsed] = useState(0);
-  const [currentSong, setCurrentSong] = useState<{
-    name: string;
-    duration: number;
-    currentTime: number;
-    index: number;
-    totalSongs: number;
-  } | null>(null);
+  const [currentSong, setCurrentSong] = useState<SongInfo | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [audioLibrary, setAudioLibrary] = useState<
     { id: string; name: string }[]
@@ -1438,6 +1433,16 @@ export default function App() {
     1,
     Math.max(0, currentIntervalProgress),
   );
+  const isWorkoutOverlayVisible =
+    state === "countdown" ||
+    state === "running" ||
+    state === "paused" ||
+    state === "finished";
+  const isCountdownState = state === "countdown";
+  const showWorkoutTopControls =
+    !isCountdownState &&
+    state !== "finished" &&
+    (Boolean(currentInterval.notes) || state === "running" || state === "paused");
 
   const startWorkout = () => {
     if (intervals.length === 0) return;
@@ -1964,75 +1969,8 @@ export default function App() {
           </div>
         </main>
 
-        {/* Countdown Overlay - Outside main */}
-        {state === "countdown" && (
-          <>
-            <Overlay />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="glass p-6 rounded-[2rem] flex flex-col justify-center items-center text-center min-h-[320px] max-w-md w-full relative">
-              {/* Cancel Button */}
-              <button
-                onClick={resetWorkout}
-                className="absolute top-6 right-6 p-3 glass rounded-full text-text-muted hover:text-text transition-colors z-20"
-                title="Cancel Countdown"
-              >
-                <X size={24} />
-              </button>
-
-              <motion.div
-                key={countdownValue}
-                initial={{ scale: 2, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                className="text-[10rem] font-mono font-black leading-none"
-                style={{ color: COLORS[0] }}
-              >
-                {countdownValue}
-              </motion.div>
-              <p className="mt-4 text-text-subtle font-mono uppercase tracking-[0.3em] text-sm">
-                Get Ready
-              </p>
-
-              {currentSong && (
-                <div className="mt-8 w-full max-w-xs">
-                  <p className="text-[10px] font-mono text-text-subtle uppercase mb-3 flex items-center justify-center gap-2">
-                    <Music
-                      size={12}
-                      className={cn("transition-opacity", musicMuted ? "opacity-50" : "animate-pulse")}
-                      style={{ color: themeColor }}
-                    />
-                    {musicMuted ? (
-                      <>
-                        <VolumeX size={10} className="text-text-subtle/50" />
-                        <span>Tracks Muted</span>
-                      </>
-                    ) : (
-                      <span>Now Playing</span>
-                    )}
-                  </p>
-                  <div className="glass bg-text-subtle/5 p-4 rounded-2xl">
-                    <p className="text-sm font-bold truncate mb-2">
-                      {currentSong.name}
-                    </p>
-                    <div className="w-full h-1.5 bg-text-subtle/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full transition-all duration-500"
-                        style={{
-                          width: `${(currentSong.currentTime / currentSong.duration) * 100}%`,
-                          backgroundColor: themeColor,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-        )}
-
-        {/* Workout Timer Overlay - Outside main */}
-        {(state === "running" || state === "paused" || state === "finished") && (
+        {/* Workout Overlay - Shared countdown + active states */}
+        {isWorkoutOverlayVisible && (
           <>
             <Overlay />
             <div
@@ -2041,32 +1979,163 @@ export default function App() {
                 isMobileLandscape && "p-2",
               )}
             >
-            <div
-              className={cn(
-                "glass p-6 rounded-[2rem] flex flex-col justify-center items-center text-center relative overflow-hidden w-full max-w-md max-h-[90vh] overflow-y-auto",
-                isMobileLandscape && "p-3 max-h-[96vh]",
-              )}
-            >
-                {/* Exit Button */}
+              <motion.div
+                layout
+                transition={{ layout: { duration: 0.28, ease: "easeOut" } }}
+                className={cn(
+                  "glass rounded-[2rem] relative overflow-hidden w-full max-w-md h-[min(90vh,38rem)] overflow-y-auto p-6 flex flex-col justify-center items-center text-center",
+                  isMobileLandscape && "p-3 h-[min(96vh,32rem)]",
+                )}
+              >
                 <button
                   onClick={resetWorkout}
                   className={cn(
-                    "absolute top-6 right-6 p-3 glass rounded-full text-text-muted hover:text-text transition-colors z-20",
+                    "absolute top-6 right-6 p-3 glass rounded-full text-text-muted hover:text-text transition-colors z-30",
                     isMobileLandscape && "top-3 right-3 p-2",
                   )}
-                  title="Exit Workout"
+                  title={isCountdownState ? "Cancel Countdown" : "Exit Workout"}
                 >
                   <X size={isMobileLandscape ? 18 : 24} />
                 </button>
 
-                {/* Progress Ring */}
-                <div
-                  key={currentIndex}
-                  className={cn(
-                    "relative w-48 h-48 flex items-center justify-center mb-4",
-                    isMobileLandscape && "w-36 h-36 mb-2",
-                  )}
-                >
+                {showWorkoutTopControls && (
+                  <div
+                    className={cn(
+                      "absolute top-4 left-4 z-30 flex flex-col items-start gap-1.5",
+                      isMobileLandscape && "top-2.5 left-2.5 gap-1",
+                    )}
+                  >
+                    {currentInterval.notes && (
+                      <Button
+                        variant="accent"
+                        size="xs"
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          window.setTimeout(() => {
+                            setViewingNotesId(currentInterval.id);
+                          }, 0);
+                        }}
+                        className={cn(
+                          "h-6 px-2.5 text-[9px] rounded-full",
+                          isMobileLandscape && "h-5 px-2 text-[8px]",
+                        )}
+                        title="View Interval Notes"
+                      >
+                        <FileText size={isMobileLandscape ? 9 : 10} />
+                        Notes
+                      </Button>
+                    )}
+                    {(state === "running" || state === "paused") && (
+                      <div
+                        className={cn(
+                          "glass bg-text-subtle/5 rounded-full px-2 py-1 flex items-center gap-1.5",
+                          isMobileLandscape && "gap-1",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "text-[9px] font-mono uppercase tracking-wider text-text-subtle/70",
+                            isMobileLandscape && "text-[7px]",
+                          )}
+                        >
+                          50%
+                        </span>
+                        <button
+                          onClick={toggleCurrentIntervalHalfwayAlert}
+                          className={cn(
+                            "w-8 h-4 rounded-full relative flex items-center",
+                            isMobileLandscape && "w-7 h-[14px]",
+                            (currentInterval.halfwayAlert ??
+                              halfwaySoundEnabled)
+                              ? "bg-accent"
+                              : "bg-text-subtle/40",
+                          )}
+                          aria-label={
+                            (currentInterval.halfwayAlert ??
+                              halfwaySoundEnabled)
+                              ? "Disable current interval halfway alert"
+                              : "Enable current interval halfway alert"
+                          }
+                          aria-pressed={
+                            currentInterval.halfwayAlert ??
+                            halfwaySoundEnabled
+                          }
+                          title="Toggle 50% alert for current interval"
+                        >
+                          <span
+                            className={cn(
+                              "w-2.5 h-2.5 rounded-full bg-text",
+                              isMobileLandscape && "w-2 h-2",
+                              (currentInterval.halfwayAlert ??
+                                halfwaySoundEnabled)
+                                ? isMobileLandscape
+                                  ? "translate-x-3.5"
+                                  : "translate-x-4"
+                                : "translate-x-0.5",
+                            )}
+                          />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <AnimatePresence mode="wait" initial={false}>
+                  {isCountdownState ? (
+                    <motion.div
+                      key="countdown-content"
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.24, ease: "easeOut" }}
+                      className="w-full flex flex-col items-center text-center"
+                    >
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.div
+                          key={countdownValue}
+                          initial={{ scale: 1.08, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.92, opacity: 0 }}
+                          transition={{ duration: 0.22, ease: "easeOut" }}
+                          className="text-[10rem] font-mono font-black leading-none"
+                          style={{ color: COLORS[0] }}
+                        >
+                          {countdownValue}
+                        </motion.div>
+                      </AnimatePresence>
+                      <p className="mt-4 text-text-subtle font-mono uppercase tracking-[0.3em] text-sm">
+                        Get Ready
+                      </p>
+
+                      <NowPlayingPanel
+                        song={currentSong}
+                        themeColor={themeColor}
+                        musicMuted={musicMuted}
+                        isMobileLandscape={isMobileLandscape}
+                        showTransportControls={false}
+                        className="mt-8"
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="workout-content"
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.24, ease: "easeOut" }}
+                      className="w-full pt-10"
+                    >
+                      {/* Progress Ring */}
+                      <div
+                        key={currentIndex}
+                        className={cn(
+                          "relative w-48 h-48 flex items-center justify-center mb-4 mx-auto",
+                          isMobileLandscape && "w-36 h-36 mb-2",
+                        )}
+                      >
                   <svg
                     viewBox="0 0 100 100"
                     className="absolute inset-0 w-full h-full -rotate-90"
@@ -2119,329 +2188,163 @@ export default function App() {
                   </div>
                 </div>
 
-                {(currentInterval.notes || state === "running" || state === "paused") &&
-                  state !== "finished" && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={cn(
-                      "absolute top-6 left-6 z-20 flex flex-col items-start gap-2",
-                      isMobileLandscape && "top-3 left-3 gap-1.5",
-                    )}
-                  >
-                    {currentInterval.notes && (
-                      <Button
-                        variant="accent"
-                        size="xs"
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          window.setTimeout(() => {
-                            setViewingNotesId(currentInterval.id);
-                          }, 0);
-                        }}
-                        className={cn(
-                          "h-7 px-3 text-[10px]",
-                          isMobileLandscape && "h-6 px-2.5 text-[9px]",
-                        )}
-                        title="View Interval Notes"
-                      >
-                        <FileText size={isMobileLandscape ? 10 : 11} />
-                        Notes
-                      </Button>
-                    )}
-                    {(state === "running" || state === "paused") && (
                       <div
                         className={cn(
-                          "flex items-center gap-1.5",
-                          isMobileLandscape && "gap-1",
+                          "w-full space-y-4",
+                          isMobileLandscape && "space-y-2",
                         )}
                       >
-                        <span
-                          className={cn(
-                            "text-[9px] font-mono uppercase tracking-wider text-text-subtle/70",
-                            isMobileLandscape && "text-[8px]",
-                          )}
-                        >
-                          50%
-                        </span>
-                        <button
-                          onClick={toggleCurrentIntervalHalfwayAlert}
-                          className={cn(
-                            "w-9 h-5 rounded-full relative flex items-center",
-                            isMobileLandscape && "w-8 h-[18px]",
-                            (currentInterval.halfwayAlert ?? halfwaySoundEnabled)
-                              ? "bg-accent"
-                              : "bg-text-subtle/40",
-                          )}
-                          aria-label={
-                            (currentInterval.halfwayAlert ?? halfwaySoundEnabled)
-                              ? "Disable current interval halfway alert"
-                              : "Enable current interval halfway alert"
-                          }
-                          aria-pressed={
-                            currentInterval.halfwayAlert ?? halfwaySoundEnabled
-                          }
-                          title="Toggle 50% alert for current interval"
-                        >
-                          <span
-                            className={cn(
-                              "w-3 h-3 rounded-full bg-text",
-                              isMobileLandscape && "w-2.5 h-2.5",
-                              (currentInterval.halfwayAlert ?? halfwaySoundEnabled)
-                                ? isMobileLandscape
-                                  ? "translate-x-[14px]"
-                                  : "translate-x-5"
-                                : "translate-x-1",
-                            )}
-                          />
-                        </button>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-
-                <div className={cn("w-full space-y-4", isMobileLandscape && "space-y-2")}>
-                  <div
-                    className={cn(
-                      "flex justify-center items-center gap-4",
-                      isMobileLandscape && "gap-2",
-                    )}
-                  >
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      onClick={previousInterval}
-                      disabled={currentIndex === 0 || state === "finished"}
-                      className={cn(
-                        "w-12 h-12 rounded-full disabled:opacity-20",
-                        isMobileLandscape && "w-10 h-10",
-                      )}
-                      title="Previous Interval"
-                    >
-                      <SkipBack size={isMobileLandscape ? 18 : 20} />
-                    </Button>
-                    <Button
-                      variant="white"
-                      size="icon"
-                      onClick={() => {
-                        if (state === "finished") {
-                          startWorkout();
-                        } else {
-                          state === "running" ? pauseWorkout() : startWorkout();
-                        }
-                      }}
-                      className={cn(
-                        "w-16 h-16 rounded-full",
-                        isMobileLandscape && "w-12 h-12",
-                      )}
-                      title={
-                        state === "finished"
-                          ? "Restart Workout"
-                          : state === "running"
-                            ? "Pause"
-                            : "Resume"
-                      }
-                    >
-                      {state === "finished" ? (
-                        <RotateCcw size={isMobileLandscape ? 22 : 28} />
-                      ) : state === "running" ? (
-                        <Pause
-                          size={isMobileLandscape ? 22 : 28}
-                          fill="currentColor"
-                        />
-                      ) : (
-                        <Play
-                          size={isMobileLandscape ? 22 : 28}
-                          className="ml-1"
-                          fill="currentColor"
-                        />
-                      )}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      onClick={nextInterval}
-                      disabled={state === "finished"}
-                      className={cn(
-                        "w-12 h-12 rounded-full disabled:opacity-20",
-                        isMobileLandscape && "w-10 h-10",
-                      )}
-                      title={
-                        currentIndex === intervals.length - 1
-                          ? "Finish Workout"
-                          : "Skip Interval"
-                      }
-                    >
-                      {currentIndex === intervals.length - 1 ? (
-                        <CheckCircle2 size={isMobileLandscape ? 20 : 24} />
-                      ) : (
-                        <SkipForward size={isMobileLandscape ? 20 : 24} />
-                      )}
-                    </Button>
-                  </div>
-
-                  {/* Interval Progress Cards */}
-                  <div className="w-full overflow-hidden">
-                    <div
-                      ref={countdownTimelineRef}
-                      className={cn(
-                        "flex gap-2 overflow-x-auto pb-2 custom-scrollbar scroll-smooth flex-nowrap",
-                        isMobileLandscape && "gap-1.5 pb-1",
-                      )}
-                    >
-                      {intervals.map((interval, index) => {
-                        const isPast =
-                          index < currentIndex || state === "finished";
-                        const isActive =
-                          index === currentIndex && state !== "finished";
-                        const mins = Math.floor(interval.duration / 60);
-                        const secs = (interval.duration % 60)
-                          .toString()
-                          .padStart(2, "0");
-
-                        return (
-                          <div
-                            key={interval.id}
-                            ref={(el) => (intervalRefs.current[index] = el)}
-                            className={cn(
-                              "flex flex-col items-center gap-1.5 flex-shrink-0",
-                              isMobileLandscape && "gap-1",
-                            )}
-                          >
-                            <div
-                              className="h-2 rounded-full transition-all duration-300"
-                              style={{
-                                width: isMobileLandscape ? "60px" : "80px",
-                                backgroundColor: isActive
-                                  ? interval.color
-                                  : isPast
-                                    ? `${interval.color}60`
-                                    : "var(--color-text-subtle)",
-                              }}
-                            />
-                            <p
-                              className={cn(
-                                "text-[10px] font-medium truncate max-w-[80px] text-center",
-                                isMobileLandscape && "text-[9px] max-w-[60px]",
-                              )}
-                              style={{
-                                color: isActive
-                                  ? interval.color
-                                  : isPast
-                                    ? "var(--color-text-muted)"
-                                    : "var(--color-text-subtle)",
-                              }}
-                            >
-                              {interval.name}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {currentSong && (
-                    <div className={cn("flex items-center gap-2", isMobileLandscape && "gap-1.5")}>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => skipTrack("previous")}
-                        className={cn(
-                          "w-10 h-10 rounded-full shrink-0",
-                          isMobileLandscape && "w-8 h-8",
-                        )}
-                        title="Previous Track"
-                      >
-                        <SkipBack size={isMobileLandscape ? 16 : 18} />
-                      </Button>
-                      <div
-                        className={cn(
-                          "glass bg-text-subtle/5 p-4 rounded-2xl text-left flex-1 min-w-0",
-                          isMobileLandscape && "p-2.5",
-                        )}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <p
-                            className={cn(
-                              "text-[10px] font-mono text-text-subtle/70 uppercase tracking-wider flex items-center gap-1.5",
-                              isMobileLandscape && "text-[9px] gap-1",
-                            )}
-                          >
-                            {musicMuted ? (
-                              <>
-                                <VolumeX size={11} className="text-text-subtle/50" />
-                                <span>Muted</span>
-                              </>
-                            ) : (
-                              <>
-                                <Music size={11} style={{ color: themeColor }} />
-                                <span>Now Playing</span>
-                              </>
-                            )}
-                          </p>
-                          <span
-                            className={cn(
-                              "text-[10px] font-mono text-text-subtle/30",
-                              isMobileLandscape && "text-[9px]",
-                            )}
-                          >
-                            {currentSong.index + 1} / {currentSong.totalSongs}
-                          </span>
-                        </div>
-                        <p className={cn("text-sm font-bold truncate mb-2", isMobileLandscape && "text-xs mb-1")}>
-                          {currentSong.name}
-                        </p>
                         <div
                           className={cn(
-                            "w-full h-1.5 bg-text-subtle/10 rounded-full overflow-hidden mb-1",
-                            isMobileLandscape && "h-1 mb-0.5",
+                            "flex justify-center items-center gap-4",
+                            isMobileLandscape && "gap-2",
                           )}
                         >
-                          <div
-                            className="h-full transition-all duration-500"
-                            style={{
-                              width: `${(currentSong.currentTime / currentSong.duration) * 100}%`,
-                              backgroundColor: themeColor,
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            onClick={previousInterval}
+                            disabled={currentIndex === 0 || state === "finished"}
+                            className={cn(
+                              "w-12 h-12 rounded-full disabled:opacity-20",
+                              isMobileLandscape && "w-10 h-10",
+                            )}
+                            title="Previous Interval"
+                          >
+                            <SkipBack size={isMobileLandscape ? 18 : 20} />
+                          </Button>
+                          <Button
+                            variant="white"
+                            size="icon"
+                            onClick={() => {
+                              if (state === "finished") {
+                                startWorkout();
+                              } else {
+                                state === "running"
+                                  ? pauseWorkout()
+                                  : startWorkout();
+                              }
                             }}
-                          />
+                            className={cn(
+                              "w-16 h-16 rounded-full",
+                              isMobileLandscape && "w-12 h-12",
+                            )}
+                            title={
+                              state === "finished"
+                                ? "Restart Workout"
+                                : state === "running"
+                                  ? "Pause"
+                                  : "Resume"
+                            }
+                          >
+                            {state === "finished" ? (
+                              <RotateCcw size={isMobileLandscape ? 22 : 28} />
+                            ) : state === "running" ? (
+                              <Pause
+                                size={isMobileLandscape ? 22 : 28}
+                                fill="currentColor"
+                              />
+                            ) : (
+                              <Play
+                                size={isMobileLandscape ? 22 : 28}
+                                className="ml-1"
+                                fill="currentColor"
+                              />
+                            )}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            onClick={nextInterval}
+                            disabled={state === "finished"}
+                            className={cn(
+                              "w-12 h-12 rounded-full disabled:opacity-20",
+                              isMobileLandscape && "w-10 h-10",
+                            )}
+                            title={
+                              currentIndex === intervals.length - 1
+                                ? "Finish Workout"
+                                : "Skip Interval"
+                            }
+                          >
+                            {currentIndex === intervals.length - 1 ? (
+                              <CheckCircle2 size={isMobileLandscape ? 20 : 24} />
+                            ) : (
+                              <SkipForward size={isMobileLandscape ? 20 : 24} />
+                            )}
+                          </Button>
                         </div>
-                        <div
-                          className={cn(
-                            "flex justify-between text-[10px] font-mono text-text-subtle/40",
-                            isMobileLandscape && "text-[9px]",
-                          )}
-                        >
-                          <span>
-                            {Math.floor(currentSong.currentTime / 60)}:
-                            {Math.floor(currentSong.currentTime % 60)
-                              .toString()
-                              .padStart(2, "0")}
-                          </span>
-                          <span>
-                            {Math.floor(currentSong.duration / 60)}:
-                            {Math.floor(currentSong.duration % 60)
-                              .toString()
-                              .padStart(2, "0")}
-                          </span>
+
+                        {/* Interval Progress Cards */}
+                        <div className="w-full overflow-hidden">
+                          <div
+                            ref={countdownTimelineRef}
+                            className={cn(
+                              "flex gap-2 overflow-x-auto pb-2 custom-scrollbar scroll-smooth flex-nowrap",
+                              isMobileLandscape && "gap-1.5 pb-1",
+                            )}
+                          >
+                            {intervals.map((interval, index) => {
+                              const isPast =
+                                index < currentIndex || state === "finished";
+                              const isActive =
+                                index === currentIndex && state !== "finished";
+
+                              return (
+                                <div
+                                  key={interval.id}
+                                  ref={(el) => (intervalRefs.current[index] = el)}
+                                  className={cn(
+                                    "flex flex-col items-center gap-1.5 flex-shrink-0",
+                                    isMobileLandscape && "gap-1",
+                                  )}
+                                >
+                                  <div
+                                    className="h-2 rounded-full transition-all duration-300"
+                                    style={{
+                                      width: isMobileLandscape ? "60px" : "80px",
+                                      backgroundColor: isActive
+                                        ? interval.color
+                                        : isPast
+                                          ? `${interval.color}60`
+                                          : "var(--color-text-subtle)",
+                                    }}
+                                  />
+                                  <p
+                                    className={cn(
+                                      "text-[10px] font-medium truncate max-w-[80px] text-center",
+                                      isMobileLandscape &&
+                                        "text-[9px] max-w-[60px]",
+                                    )}
+                                    style={{
+                                      color: isActive
+                                        ? interval.color
+                                        : isPast
+                                          ? "var(--color-text-muted)"
+                                          : "var(--color-text-subtle)",
+                                    }}
+                                  >
+                                    {interval.name}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
+
+                        <NowPlayingPanel
+                          song={currentSong}
+                          themeColor={themeColor}
+                          musicMuted={musicMuted}
+                          isMobileLandscape={isMobileLandscape}
+                          showTransportControls
+                          onSkipTrack={skipTrack}
+                        />
                       </div>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        onClick={() => skipTrack("next")}
-                        className={cn(
-                          "w-10 h-10 rounded-full shrink-0",
-                          isMobileLandscape && "w-8 h-8",
-                        )}
-                        title="Next Track"
-                      >
-                        <SkipForward size={isMobileLandscape ? 16 : 18} />
-                      </Button>
-                    </div>
+                    </motion.div>
                   )}
-                </div>
-              </div>
+                </AnimatePresence>
+              </motion.div>
             </div>
           </>
         )}
