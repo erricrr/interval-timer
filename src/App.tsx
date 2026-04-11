@@ -2116,14 +2116,6 @@ export default function App() {
                       {Math.floor(safeTimeLeft / 60)}:
                       {(safeTimeLeft % 60).toString().padStart(2, "0")}
                     </p>
-                    <p
-                      className={cn(
-                        "text-[9px] font-mono text-text-subtle/70 uppercase tracking-[0.2em] mt-1.5",
-                        isMobileLandscape && "text-[8px] mt-1",
-                      )}
-                    >
-                      LEFT
-                    </p>
                   </div>
                 </div>
 
