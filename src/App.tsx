@@ -2142,6 +2142,23 @@ export default function App() {
                       transition={{ duration: 0.24, ease: "easeOut" }}
                       className="w-full pt-10"
                     >
+                      {(state === "running" || state === "paused") &&
+                        currentInterval?.name && (
+                          <motion.p
+                            key={`active-interval-name-${currentInterval.id}`}
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                            className={cn(
+                              "mx-auto mb-4 max-w-full text-2xl sm:text-3xl font-black tracking-tight leading-tight text-center wrap-break-word",
+                              isMobileLandscape && "mb-2 text-xl",
+                            )}
+                            style={{ color: themeColor }}
+                          >
+                            {currentInterval.name}
+                          </motion.p>
+                        )}
+
                       {/* Progress Ring */}
                       <div
                         key={currentIndex}
