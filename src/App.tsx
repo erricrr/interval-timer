@@ -949,7 +949,7 @@ const PlaylistDrawer = ({
 };
 
 export default function App() {
-  const [workoutTitle, setWorkoutTitle] = useState("TempoTread Session");
+  const [workoutTitle, setWorkoutTitle] = useState("New Session");
   const [currentWorkoutId, setCurrentWorkoutId] = useState<string | null>(null);
   const [intervals, setIntervals] = useState<Interval[]>(() => createStarterIntervals());
 
@@ -1408,8 +1408,8 @@ export default function App() {
   };
 
   const clearWorkout = () => {
-    setWorkoutTitle("TempoTread Session");
-    setIntervals(createStarterIntervals());
+    setWorkoutTitle("New Session");
+    setIntervals([]);
     setCurrentWorkoutId(null);
     resetWorkout();
     setShowNewWorkoutConfirm(false);
@@ -1503,7 +1503,7 @@ export default function App() {
     }
 
     try {
-      const titleToSave = workoutTitle?.trim() || "TempoTread Session";
+      const titleToSave = workoutTitle?.trim() || "New Session";
       let workoutId = currentWorkoutId;
 
       if (currentWorkoutId) {

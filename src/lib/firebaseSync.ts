@@ -140,7 +140,7 @@ export function normalizeWorkoutData(data: Partial<WorkoutData> | null | undefin
     workoutTitle:
       typeof data?.workoutTitle === "string" && data.workoutTitle.trim().length > 0
         ? data.workoutTitle.trim()
-        : "TempoTread Session",
+        : "New Session",
     intervals: Array.isArray(data?.intervals)
       ? data.intervals.map((interval, index) => normalizeInterval(interval, index))
       : [],
@@ -193,7 +193,7 @@ export interface WorkoutData {
 
 export async function saveWorkout(uid: string, data: WorkoutData): Promise<void> {
   const cleanData: WorkoutData = {
-    workoutTitle: data.workoutTitle?.trim() || "TempoTread Session",
+    workoutTitle: data.workoutTitle?.trim() || "New Session",
     intervals: data.intervals.map(cleanInterval),
   };
   await setDoc(doc(db, "users", uid, "workouts", CURRENT_WORKOUT_ID), cleanData);
@@ -203,7 +203,7 @@ export async function saveNewWorkout(uid: string, data: WorkoutData): Promise<st
   const newId = crypto.randomUUID();
   const libraryWorkout: SavedWorkout = {
     id: newId,
-    title: data.workoutTitle?.trim() || "TempoTread Session",
+    title: data.workoutTitle?.trim() || "New Session",
     intervals: data.intervals.map(cleanInterval),
   };
   await setDoc(doc(db, "users", uid, "savedWorkouts", newId), libraryWorkout);
@@ -215,7 +215,7 @@ export async function saveOrReplaceWorkout(
   data: WorkoutData,
   existingWorkouts: SavedWorkout[]
 ): Promise<{ id: string; isNew: boolean }> {
-  const titleToSave = data.workoutTitle?.trim().toLowerCase() || "tempotread session";
+  const titleToSave = data.workoutTitle?.trim().toLowerCase() || "New session";
 
   const cleanedIntervals = data.intervals.map(cleanInterval);
   console.log("saveOrReplaceWorkout - Cleaned intervals being saved:");
@@ -225,7 +225,7 @@ export async function saveOrReplaceWorkout(
 
   // Save to current workout document first
   const currentWorkoutData: WorkoutData = {
-    workoutTitle: data.workoutTitle?.trim() || "TempoTread Session",
+    workoutTitle: data.workoutTitle?.trim() || "New Session",
     intervals: cleanedIntervals,
   };
   await setDoc(doc(db, "users", uid, "workouts", CURRENT_WORKOUT_ID), currentWorkoutData);
@@ -239,7 +239,7 @@ export async function saveOrReplaceWorkout(
     // Replace existing workout in library - keep same ID, update intervals
     const libraryWorkout: SavedWorkout = {
       id: existingWorkout.id,
-      title: data.workoutTitle?.trim() || "TempoTread Session",
+      title: data.workoutTitle?.trim() || "New Session",
       intervals: cleanedIntervals,
     };
     await setDoc(doc(db, "users", uid, "savedWorkouts", existingWorkout.id), libraryWorkout);
@@ -249,7 +249,7 @@ export async function saveOrReplaceWorkout(
     const newId = crypto.randomUUID();
     const libraryWorkout: SavedWorkout = {
       id: newId,
-      title: data.workoutTitle?.trim() || "TempoTread Session",
+      title: data.workoutTitle?.trim() || "New Session",
       intervals: cleanedIntervals,
     };
     await setDoc(doc(db, "users", uid, "savedWorkouts", newId), libraryWorkout);
