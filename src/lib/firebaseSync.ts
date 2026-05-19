@@ -6,7 +6,7 @@ import {
   ref, uploadBytes, getDownloadURL, deleteObject
 } from "firebase/storage";
 import { db, storage } from "./firebase";
-import type { Interval } from "./utils";
+import type { Interval, PlaylistTrack } from "./utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,28 +63,124 @@ export async function deleteCustomAlarm(storagePath: string) {
 // ─── Saved Workouts Library ───────────────────────────────────────────────────
 
 export async function saveWorkoutToLibrary(uid: string, workout: SavedWorkout): Promise<void> {
-  await setDoc(doc(db, "users", uid, "savedWorkouts", workout.id), workout);
+  await setDoc(doc(db, "users", uid, "savedWorkouts", workout.id), normalizeSavedWorkout(workout));
 }
 
 export async function loadSavedWorkouts(uid: string): Promise<SavedWorkout[]> {
   const snap = await getDocs(collection(db, "users", uid, "savedWorkouts"));
-  return snap.docs.map((d) => d.data() as SavedWorkout);
+  return snap.docs.map((d) => normalizeSavedWorkout(d.data()));
 }
 
 export async function deleteSavedWorkoutFromLibrary(uid: string, workoutId: string): Promise<void> {
   await deleteDoc(doc(db, "users", uid, "savedWorkouts", workoutId));
 }
 
+function normalizePlaylist(playlist: unknown): PlaylistTrack[] {
+  if (!Array.isArray(playlist)) return [];
+
+  return playlist
+    .map((track) => {
+      const candidate = track as Partial<PlaylistTrack> | null | undefined;
+      const audioId = typeof candidate?.audioId === "string" ? candidate.audioId.trim() : "";
+      if (!audioId) return null;
+
+      return {
+        audioId,
+        instanceId:
+          typeof candidate.instanceId === "string" && candidate.instanceId.trim().length > 0
+            ? candidate.instanceId
+            : crypto.randomUUID(),
+      };
+    })
+    .filter((track): track is PlaylistTrack => track !== null);
+}
+
+export function normalizeInterval(
+  interval: Partial<Interval> | null | undefined,
+  fallbackIndex = 0,
+): Interval {
+  const safeDuration = Number.isFinite(interval?.duration)
+    ? Math.max(0, Number(interval?.duration))
+    : 0;
+
+  const normalized: Interval = {
+    id:
+      typeof interval?.id === "string" && interval.id.trim().length > 0
+        ? interval.id
+        : crypto.randomUUID(),
+    name:
+      typeof interval?.name === "string" && interval.name.trim().length > 0
+        ? interval.name
+        : `Interval ${fallbackIndex + 1}`,
+    duration: safeDuration,
+    color:
+      typeof interval?.color === "string" && interval.color.trim().length > 0
+        ? interval.color
+        : "#F27D26",
+  };
+
+  if (typeof interval?.notes === "string") {
+    normalized.notes = interval.notes;
+  }
+
+  const playlist = normalizePlaylist(interval?.playlist);
+  if (playlist.length > 0) {
+    normalized.playlist = playlist;
+  }
+
+  if (typeof interval?.halfwayAlert === "boolean") {
+    normalized.halfwayAlert = interval.halfwayAlert;
+  }
+
+  return normalized;
+}
+
+export function normalizeWorkoutData(data: Partial<WorkoutData> | null | undefined): WorkoutData {
+  return {
+    workoutTitle:
+      typeof data?.workoutTitle === "string" && data.workoutTitle.trim().length > 0
+        ? data.workoutTitle.trim()
+        : "TempoTread Session",
+    intervals: Array.isArray(data?.intervals)
+      ? data.intervals.map((interval, index) => normalizeInterval(interval, index))
+      : [],
+  };
+}
+
+export function normalizeSavedWorkout(
+  workout: Partial<SavedWorkout> | null | undefined,
+): SavedWorkout {
+  const normalizedData = normalizeWorkoutData({
+    workoutTitle: workout?.title,
+    intervals: workout?.intervals,
+  });
+
+  return {
+    id:
+      typeof workout?.id === "string" && workout.id.trim().length > 0
+        ? workout.id
+        : crypto.randomUUID(),
+    title: normalizedData.workoutTitle,
+    intervals: normalizedData.intervals,
+  };
+}
+
 // Helper to clean intervals (DRY)
 function cleanInterval(interval: Interval) {
+  const normalizedInterval = normalizeInterval(interval);
+
   return {
-    id: interval.id,
-    name: interval.name || "",
-    duration: interval.duration || 0,
-    color: interval.color || "#F27D26",
-    ...(interval.notes !== undefined && { notes: interval.notes }),
-    ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
-    ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
+    id: normalizedInterval.id,
+    name: normalizedInterval.name || "",
+    duration: normalizedInterval.duration || 0,
+    color: normalizedInterval.color || "#F27D26",
+    ...(normalizedInterval.notes !== undefined && { notes: normalizedInterval.notes }),
+    ...(normalizedInterval.playlist !== undefined
+      ? { playlist: normalizedInterval.playlist }
+      : { playlist: [] }),
+    ...(normalizedInterval.halfwayAlert !== undefined && {
+      halfwayAlert: normalizedInterval.halfwayAlert,
+    }),
   };
 }
 
@@ -164,7 +260,7 @@ export async function saveOrReplaceWorkout(
 export async function loadWorkout(uid: string): Promise<WorkoutData | null> {
   const snap = await getDoc(doc(db, "users", uid, "workouts", CURRENT_WORKOUT_ID));
   if (snap.exists()) {
-    const data = snap.data() as WorkoutData;
+    const data = normalizeWorkoutData(snap.data() as Partial<WorkoutData>);
     console.log("loadWorkout - Raw data from Firebase:");
     data.intervals?.forEach(i => {
       console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);

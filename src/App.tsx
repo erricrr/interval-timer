@@ -64,8 +64,16 @@ import {
   loadSavedWorkouts,
   deleteSavedWorkoutFromLibrary,
   saveOrReplaceWorkout,
+  normalizeSavedWorkout,
+  normalizeWorkoutData,
 } from "./lib/firebaseSync";
 import type { Settings as FirebaseSettings } from "./lib/firebaseSync";
+
+const createStarterIntervals = (): Interval[] => [
+  { id: crypto.randomUUID(), name: "Warm Up", duration: 10, notes: "", color: COLORS[1] },
+  { id: crypto.randomUUID(), name: "Run", duration: 10, notes: "", color: COLORS[3] },
+  { id: crypto.randomUUID(), name: "Recovery", duration: 10, notes: "", color: COLORS[2] },
+];
 
 interface SortableIntervalCardProps {
   key?: React.Key;
@@ -693,7 +701,7 @@ const IntervalCard = ({
 
 interface PlaylistDrawerProps {
   isOpen: boolean;
-  interval: Interval;
+  interval: Interval | null;
   colorGroups: ColorGroup[];
   audioLibrary: { id: string; name: string }[];
   onClose: () => void;
@@ -716,11 +724,13 @@ const PlaylistDrawer = ({
 }: PlaylistDrawerProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [audioToDelete, setAudioToDelete] = useState<{ id: string; name: string } | null>(null);
+  const intervalColor = interval?.color || "#F27D26";
+  const intervalName = interval?.name || "Untitled";
 
   // Get the merged playlist for this interval's color group
   const colorGroup = useMemo(() =>
-    getGroupForInterval(colorGroups, interval.color),
-    [colorGroups, interval.color]
+    interval ? getGroupForInterval(colorGroups, intervalColor) : undefined,
+    [colorGroups, interval, intervalColor]
   );
   const mergedPlaylist = colorGroup?.mergedPlaylist || [];
 
@@ -736,8 +746,8 @@ const PlaylistDrawer = ({
       </h2>
       <p className="text-[10px] font-mono text-text-muted uppercase tracking-widest mt-1">
         Interval:{" "}
-        <span style={{ color: interval.color }}>
-          {interval.name || "Untitled"}
+        <span style={{ color: intervalColor }}>
+          {intervalName}
         </span>
       </p>
     </div>
@@ -752,7 +762,7 @@ const PlaylistDrawer = ({
         title={titleContent}
         className="max-w-[90vw] sm:max-w-sm md:max-w-md"
         contentClassName="p-4 sm:p-6 space-y-6 sm:space-y-8 custom-scrollbar"
-        style={{ "--interval-color": interval.color } as React.CSSProperties}
+        style={{ "--interval-color": intervalColor } as React.CSSProperties}
       >
         {/* Current Playlist */}
         <section className="space-y-4">
@@ -785,7 +795,7 @@ const PlaylistDrawer = ({
                 );
                 return (
                   <Reorder.Item
-                    key={track.instanceId}
+                    key={track.instanceId || track.audioId}
                     value={track}
                     className="glass p-3 rounded-xl flex items-center gap-3 group/item border border-text-subtle/10 hover:border-text-subtle/20 transition-colors"
                   >
@@ -794,7 +804,7 @@ const PlaylistDrawer = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-text/80 truncate">
-                        {formatAudioName(audio!.name)}
+                        {formatAudioName(audio?.name || "Missing audio track")}
                       </p>
                     </div>
                     <button
@@ -941,11 +951,7 @@ const PlaylistDrawer = ({
 export default function App() {
   const [workoutTitle, setWorkoutTitle] = useState("TempoTread Session");
   const [currentWorkoutId, setCurrentWorkoutId] = useState<string | null>(null);
-  const [intervals, setIntervals] = useState<Interval[]>([
-    { id: "1", name: "Warm Up", duration: 10, notes: "", color: COLORS[1] },
-    { id: "2", name: "Run", duration: 10, notes: "", color: COLORS[3] },
-    { id: "3", name: "Recovery", duration: 10, notes: "", color: COLORS[2] },
-  ]);
+  const [intervals, setIntervals] = useState<Interval[]>(() => createStarterIntervals());
 
   const [state, setState] = useState<WorkoutState>("idle");
   const [countdownValue, setCountdownValue] = useState(0);
@@ -1138,15 +1144,16 @@ export default function App() {
         }
 
         if (shouldLoadCurrentWorkout && workoutData) {
+          const normalizedCurrentWorkout = normalizeWorkoutData(workoutData);
           console.log("Loading current workout intervals:");
-          workoutData.intervals.forEach(i => {
+          normalizedCurrentWorkout.intervals.forEach(i => {
             console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
           });
-          setWorkoutTitle(workoutData.workoutTitle?.trim() || "TempoTread Session");
-          setIntervals(workoutData.intervals || []);
+          setWorkoutTitle(normalizedCurrentWorkout.workoutTitle);
+          setIntervals(normalizedCurrentWorkout.intervals);
         } else if (workouts.length > 0) {
           // No valid current workout but has saved workouts - load the first one
-          const firstWorkout = workouts[0];
+          const firstWorkout = normalizeSavedWorkout(workouts[0]);
           console.log("Auto-loading first saved workout:", firstWorkout.title);
           console.log("First workout intervals:");
           firstWorkout.intervals.forEach(i => {
@@ -1165,7 +1172,7 @@ export default function App() {
           audioEngine.setMusicMuted(settings.musicMuted ?? false);
         }
 
-        setSavedWorkouts(workouts);
+        setSavedWorkouts(workouts.map(normalizeSavedWorkout));
 
         // Mark that initial data has been loaded
         hasLoadedInitialData.current = true;
@@ -1214,7 +1221,11 @@ export default function App() {
     const saved = localStorage.getItem("tempotread_workouts");
     if (saved) {
       try {
-        setSavedWorkouts(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        const normalized = Array.isArray(parsed)
+          ? parsed.map((workout) => normalizeSavedWorkout(workout))
+          : [];
+        setSavedWorkouts(normalized);
       } catch (e) {
         console.error("Failed to load saved workouts from localStorage");
       }
@@ -1268,7 +1279,7 @@ export default function App() {
     // 1. Showing default intervals, OR
     // 2. Current workout title doesn't exist in saved workouts (was deleted)
     if (isDefaultIntervals || !currentWorkoutExists) {
-      const firstWorkout = savedWorkouts[0];
+      const firstWorkout = normalizeSavedWorkout(savedWorkouts[0]);
       console.log("Auto-loading first saved workout for non-logged-in user:", firstWorkout.title);
       setWorkoutTitle(firstWorkout.title);
       setIntervals(firstWorkout.intervals);
@@ -1348,9 +1359,10 @@ export default function App() {
     title: string;
     intervals: Interval[];
   }) => {
-    setWorkoutTitle(workout.title);
-    setIntervals(workout.intervals);
-    setCurrentWorkoutId(workout.id);
+    const normalizedWorkout = normalizeSavedWorkout(workout);
+    setWorkoutTitle(normalizedWorkout.title);
+    setIntervals(normalizedWorkout.intervals);
+    setCurrentWorkoutId(normalizedWorkout.id);
     setShowSettings(false);
   };
 
@@ -1397,7 +1409,7 @@ export default function App() {
 
   const clearWorkout = () => {
     setWorkoutTitle("TempoTread Session");
-    setIntervals([]);
+    setIntervals(createStarterIntervals());
     setCurrentWorkoutId(null);
     resetWorkout();
     setShowNewWorkoutConfirm(false);
@@ -1421,14 +1433,20 @@ export default function App() {
     if (state === "finished") return "#888888";
     return currentInterval?.color || "#F27D26";
   }, [state, currentInterval]);
+  const hasCurrentInterval = Boolean(currentInterval);
   const totalDuration = useMemo(
     () => intervals.reduce((acc, i) => acc + i.duration, 0),
     [intervals],
   );
   const remainingTotalDuration = Math.max(0, totalDuration - totalTimeElapsed);
   const safeTimeLeft = Math.max(0, timeLeft);
+  const currentIntervalDuration = currentInterval?.duration ?? 0;
+  const currentIntervalNotes = currentInterval?.notes ?? "";
+  const currentIntervalId = currentInterval?.id ?? null;
+  const currentHalfwayAlertEnabled =
+    currentInterval?.halfwayAlert ?? halfwaySoundEnabled;
   const currentIntervalProgress =
-    currentInterval.duration > 0 ? safeTimeLeft / currentInterval.duration : 0;
+    currentIntervalDuration > 0 ? safeTimeLeft / currentIntervalDuration : 0;
   const clampedIntervalProgress = Math.min(
     1,
     Math.max(0, currentIntervalProgress),
@@ -1440,9 +1458,10 @@ export default function App() {
     state === "finished";
   const isCountdownState = state === "countdown";
   const showWorkoutTopControls =
+    hasCurrentInterval &&
     !isCountdownState &&
     state !== "finished" &&
-    (Boolean(currentInterval.notes) || state === "running" || state === "paused");
+    (Boolean(currentIntervalNotes) || state === "running" || state === "paused");
 
   const startWorkout = () => {
     if (intervals.length === 0) return;
@@ -1571,6 +1590,7 @@ export default function App() {
   };
 
   const toggleCurrentIntervalHalfwayAlert = () => {
+    if (!currentInterval) return;
     const effectiveEnabled =
       currentInterval.halfwayAlert ?? halfwaySoundEnabled;
     const nextEnabled = !effectiveEnabled;
@@ -2005,7 +2025,7 @@ export default function App() {
                       isMobileLandscape && "top-2.5 left-2.5 gap-1",
                     )}
                   >
-                    {currentInterval.notes && (
+                    {currentIntervalNotes && (
                       <Button
                         variant="accent"
                         size="xs"
@@ -2013,7 +2033,9 @@ export default function App() {
                         onClick={(event) => {
                           event.stopPropagation();
                           window.setTimeout(() => {
-                            setViewingNotesId(currentInterval.id);
+                            if (currentIntervalId) {
+                              setViewingNotesId(currentIntervalId);
+                            }
                           }, 0);
                         }}
                         className={cn(
@@ -2046,29 +2068,21 @@ export default function App() {
                           className={cn(
                             "w-8 h-4 rounded-full relative flex items-center",
                             isMobileLandscape && "w-7 h-[14px]",
-                            (currentInterval.halfwayAlert ??
-                              halfwaySoundEnabled)
-                              ? "bg-accent"
-                              : "bg-text-subtle/40",
+                            currentHalfwayAlertEnabled ? "bg-accent" : "bg-text-subtle/40",
                           )}
                           aria-label={
-                            (currentInterval.halfwayAlert ??
-                              halfwaySoundEnabled)
+                            currentHalfwayAlertEnabled
                               ? "Disable current interval halfway alert"
                               : "Enable current interval halfway alert"
                           }
-                          aria-pressed={
-                            currentInterval.halfwayAlert ??
-                            halfwaySoundEnabled
-                          }
+                          aria-pressed={currentHalfwayAlertEnabled}
                           title="Toggle 50% alert for current interval"
                         >
                           <span
                             className={cn(
                               "w-2.5 h-2.5 rounded-full bg-text",
                               isMobileLandscape && "w-2 h-2",
-                              (currentInterval.halfwayAlert ??
-                                halfwaySoundEnabled)
+                              currentHalfwayAlertEnabled
                                 ? isMobileLandscape
                                   ? "translate-x-3.5"
                                   : "translate-x-4"
@@ -2696,8 +2710,8 @@ export default function App() {
         </Modal>
 
         <PlaylistDrawer
-          isOpen={!!editingIntervalId}
-          interval={intervals.find((i) => i.id === editingIntervalId) || intervals[0]}
+          isOpen={Boolean(editingIntervalId && intervals.find((i) => i.id === editingIntervalId))}
+          interval={intervals.find((i) => i.id === editingIntervalId) || null}
           colorGroups={colorGroups}
           audioLibrary={audioLibrary}
           onClose={() => setEditingIntervalId(null)}
