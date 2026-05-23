@@ -1465,11 +1465,11 @@ export default function App() {
 
   const startWorkout = () => {
     if (intervals.length === 0) return;
-    // Synchronous tap path: primes HTMLAudio for iOS (delayed play after countdown)
-    audioEngine.primePlaybackFromUserGesture();
     void audioEngine.resumeAudioContext();
 
     if (state === "idle" || state === "finished") {
+      // Synchronous tap path: primes HTMLAudio for iOS (delayed play after countdown)
+      audioEngine.primePlaybackFromUserGesture();
       if (state === "finished") {
         resetWorkout();
       }
@@ -1834,7 +1834,7 @@ export default function App() {
               className="text-xl md:text-3xl lg:text-5xl font-black tracking-tighter text-accent bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full uppercase truncate"
               aria-label="Workout title"
             />
-            <div className="flex items-end justify-between mt-1">
+            <div className="grid grid-cols-3 items-end mt-1">
               <div className="text-left">
                 <p className="text-[10px] text-text-subtle font-mono uppercase tracking-widest">
                   {state === "running" ||
@@ -1852,22 +1852,26 @@ export default function App() {
                 </p>
               </div>
 
-              {/* New Workout Button */}
-              <button
-                onClick={() => setShowNewWorkoutConfirm(true)}
-                className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-text-muted hover:text-text hover:bg-text-subtle/10 transition-all border border-text-subtle/10 text-[10px] font-bold uppercase tracking-wider mr-4"
-                title="Start new workout"
-              >
-                <Plus size={12} />
-                 New Session
-              </button>
-              <button
-                onClick={handleSaveWorkout}
-                className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-accent hover:bg-accent/10 transition-all border border-accent/20 text-[10px] font-bold uppercase tracking-wider"
-              >
-                <Save size={12} />
-                {timelineSaved ? "Saved!" : "Save"}
-              </button>
+              <div className="flex justify-center">
+                <button
+                  onClick={handleSaveWorkout}
+                  className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-accent hover:bg-accent/10 transition-all border border-accent/20 text-[10px] font-bold uppercase tracking-wider"
+                >
+                  <Save size={12} />
+                  {timelineSaved ? "Saved!" : "Save"}
+                </button>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowNewWorkoutConfirm(true)}
+                  className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-text-muted hover:text-text hover:bg-text-subtle/10 transition-all border border-text-subtle/10 text-[10px] font-bold uppercase tracking-wider"
+                  title="Start new workout"
+                >
+                  <Plus size={12} />
+                  New Session
+                </button>
+              </div>
             </div>
           </div>
 

@@ -89,7 +89,85 @@ class AudioEngine {
     this.applyPlaylistOutputState();
   }
 
-  /** Call synchronously from Start / Resume tap — required for iOS to allow play() after countdown */
+  private getActivePlaylistElement(): HTMLAudioElement {
+    this.ensurePlaylistAudio();
+    return this.playlistAudio!;
+  }
+
+  private isPrimingOrEmptySrc(src: string): boolean {
+    return !src || src === SILENT_WAV_DATA_URI;
+  }
+
+  private isTrackLoadedOnElement(trackAudioId: string, entryUrl: string): boolean {
+    const el = this.playlistAudio;
+    if (!el || this.currentPlaylistTrackId !== trackAudioId) return false;
+    const src = el.currentSrc || el.src;
+    return !this.isPrimingOrEmptySrc(src) && src === entryUrl;
+  }
+
+  private setPlaylistTrackSource(
+    trackAudioId: string,
+    url: string,
+    onLoaded?: () => void,
+  ): HTMLAudioElement {
+    const el = this.getActivePlaylistElement();
+    this.currentPlaylistTrackId = trackAudioId;
+    el.src = url;
+    this.applyPlaylistOutputState();
+    if (onLoaded) {
+      if (el.readyState >= HTMLMediaElement.HAVE_METADATA) {
+        onLoaded();
+      } else {
+        el.addEventListener("loadedmetadata", onLoaded, { once: true });
+      }
+    }
+    el.load();
+    return el;
+  }
+
+  /** Seek (optional) then play; retries immediately if media is ready, otherwise on canplay. */
+  private attemptMediaPlay(el: HTMLAudioElement, seekTo?: number): void {
+    if (seekTo !== undefined && Number.isFinite(seekTo) && seekTo >= 0) {
+      try {
+        el.currentTime = seekTo;
+      } catch {
+        /* not seekable yet — play() retry may still succeed */
+      }
+    }
+
+    const promise = el.play();
+    if (promise === undefined) return;
+
+    void promise.catch(() => {
+      if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        void el.play().catch(() => {});
+        return;
+      }
+      const retry = () => {
+        el.removeEventListener("canplay", retry);
+        void el.play().catch(() => {});
+      };
+      el.addEventListener("canplay", retry, { once: true });
+    });
+  }
+
+  /** Load or resume the current playlist track at `offset`. */
+  private playTrackAtOffset(trackAudioId: string, entryUrl: string, offset: number): void {
+    const el = this.getActivePlaylistElement();
+    el.onended = this.handlePlaylistEnded;
+    this.applyPlaylistOutputState();
+
+    if (this.isTrackLoadedOnElement(trackAudioId, entryUrl)) {
+      this.attemptMediaPlay(el, offset);
+      return;
+    }
+
+    this.setPlaylistTrackSource(trackAudioId, entryUrl, () =>
+      this.attemptMediaPlay(el, offset),
+    );
+  }
+
+  /** Call synchronously from Start tap — required for iOS to allow play() after countdown */
   primePlaybackFromUserGesture(): void {
     this.init();
     void this.ctx?.resume();
@@ -320,8 +398,13 @@ class AudioEngine {
 
   resumePlaylist() {
     if (!this.playlistState || !this.playlistState.isPaused) return;
+
+    const track = this.playlistState.playlist[this.playlistState.currentIndex];
+    const entry = this.trackEntries.get(track.audioId);
+    if (!entry?.url) return;
+
     this.playlistState.isPaused = false;
-    this.playNextInPlaylist();
+    this.playTrackAtOffset(track.audioId, entry.url, this.playlistState.currentOffset);
   }
 
   /** Which track id is loaded on the media element (avoid redundant src sets). */
@@ -344,40 +427,7 @@ class AudioEngine {
       return;
     }
 
-    this.ensurePlaylistAudio();
-    const el = this.playlistAudio!;
-    this.applyPlaylistOutputState();
-    el.onended = this.handlePlaylistEnded;
-
-    const offset = this.playlistState.currentOffset;
-
-    const tryPlay = () => {
-      try {
-        el.currentTime = offset;
-      } catch {
-        /* ignore */
-      }
-      const p = el.play();
-      if (p !== undefined) {
-        void p.catch(() => {
-          const onReady = () => {
-            void el.play().catch(() => {});
-            el.removeEventListener("canplay", onReady);
-          };
-          el.addEventListener("canplay", onReady, { once: true });
-        });
-      }
-    };
-
-    if (this.currentPlaylistTrackId !== track.audioId) {
-      this.currentPlaylistTrackId = track.audioId;
-      el.src = entry.url;
-      this.applyPlaylistOutputState();
-      el.addEventListener("loadedmetadata", tryPlay, { once: true });
-      el.load();
-    } else {
-      tryPlay();
-    }
+    this.playTrackAtOffset(track.audioId, entry.url, this.playlistState.currentOffset);
   }
 
   private jumpPlaylistBy(step: number): boolean {
@@ -394,12 +444,7 @@ class AudioEngine {
       const track = this.playlistState.playlist[this.playlistState.currentIndex];
       const entry = this.trackEntries.get(track.audioId);
       if (!entry?.url) return true;
-      this.ensurePlaylistAudio();
-      const el = this.playlistAudio!;
-      this.currentPlaylistTrackId = track.audioId;
-      el.src = entry.url;
-      this.applyPlaylistOutputState();
-      el.load();
+      this.setPlaylistTrackSource(track.audioId, entry.url);
       return true;
     }
     this.playNextInPlaylist();
