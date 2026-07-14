@@ -756,9 +756,8 @@ const PlaylistDrawer = ({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        variant="drawer"
+        variant="bottom-sheet"
         title={titleContent}
-        className="max-w-[90vw] sm:max-w-sm md:max-w-md"
         contentClassName="p-4 sm:p-6 space-y-6 sm:space-y-8 custom-scrollbar"
         style={{ "--interval-color": intervalColor } as React.CSSProperties}
       >

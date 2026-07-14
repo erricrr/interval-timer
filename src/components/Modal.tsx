@@ -5,7 +5,7 @@ import { cn } from "../lib/utils";
 import { Overlay } from "./Overlay";
 import { useAuth } from "../contexts/AuthContext";
 
-type ModalVariant = "centered" | "drawer" | "fullscreen";
+type ModalVariant = "centered" | "drawer" | "bottom-sheet" | "fullscreen";
 
 interface ModalProps {
   isOpen: boolean;
@@ -112,6 +112,46 @@ export function Modal({
                 </div>
               )}
               <div className={cn("flex-1 overflow-y-auto", contentClassName)}>
+                {children}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </>
+    );
+  }
+
+  if (variant === "bottom-sheet") {
+    return (
+      <>
+        {showOverlay && (
+          <AnimatePresence>
+            {isOpen && (
+              <Overlay onClick={onClose} className={cn("z-[100]", backdropClassName)} />
+            )}
+          </AnimatePresence>
+        )}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              key="bottom-sheet"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              style={style}
+              className={cn(
+                "fixed bottom-0 left-0 right-0 w-full max-h-[85dvh] glass border-t border-text-subtle/10 rounded-t-2xl z-[101] flex flex-col shadow-2xl",
+                className
+              )}
+            >
+              {(title || showCloseButton) && (
+                <div className="p-4 sm:p-6 border-b border-text-subtle/10 flex items-center justify-between shrink-0">
+                  {title && <div className="flex-1 min-w-0 pr-4">{title}</div>}
+                  {showCloseButton && <CloseButton onClose={onClose} className={closeButtonClassName} />}
+                </div>
+              )}
+              <div className={cn("flex-1 overflow-y-auto min-h-0", contentClassName)}>
                 {children}
               </div>
             </motion.div>
