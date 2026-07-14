@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Overlay } from "./Overlay";
+import { useAuth } from "../contexts/AuthContext";
 
 type ModalVariant = "centered" | "drawer" | "fullscreen";
 
@@ -142,7 +143,7 @@ export function Modal({
             >
               <div
                 className={cn(
-                  "w-full max-w-[calc(100vw-1.5rem)] sm:max-w-lg md:max-w-xl lg:max-w-2xl flex flex-col h-full max-h-[92vh] sm:max-h-[90vh] glass p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] neo-shadow relative pointer-events-auto",
+                  "w-full max-w-[calc(100vw-1.5rem)] sm:max-w-lg md:max-w-xl lg:max-w-2xl flex flex-col h-full max-h-[92dvh] sm:max-h-[90dvh] glass p-4 sm:p-5 rounded-2xl sm:rounded-[2.5rem] neo-shadow relative pointer-events-auto",
                   contentClassName
                 )}
               >
@@ -278,11 +279,11 @@ interface LoginModalProps {
 }
 
 export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+  const { signIn } = useAuth();
+
   const handleLogin = async () => {
     try {
-      const { signInWithPopup } = await import("firebase/auth");
-      const { auth, provider } = await import("../lib/firebase");
-      await signInWithPopup(auth, provider);
+      await signIn();
       onClose();
     } catch (error) {
       console.error("Login error:", error);

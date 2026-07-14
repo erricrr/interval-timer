@@ -1,6 +1,12 @@
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence, onAuthStateChanged } from "firebase/auth";
+import { getAnalytics, type Analytics } from "firebase/analytics";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  setPersistence,
+  browserLocalPersistence,
+  onAuthStateChanged,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -11,11 +17,20 @@ const firebaseConfig = {
   storageBucket: "interval-timer-ddd55.firebasestorage.app",
   messagingSenderId: "429463431971",
   appId: "1:429463431971:web:2550c28b33aa245504fa96",
-  measurementId: "G-DK2JKG8Q2X"
+  measurementId: "G-DK2JKG8Q2X",
 };
 
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+let analytics: Analytics | null = null;
+
+export function initAnalytics(): Analytics | null {
+  if (typeof window === "undefined") return null;
+  if (!analytics) {
+    analytics = getAnalytics(app);
+  }
+  return analytics;
+}
+
 export const auth = getAuth(app);
 
 // Set auth persistence to local (survives browser restarts)
@@ -27,4 +42,4 @@ export const provider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-export { app, analytics, onAuthStateChanged };
+export { app, onAuthStateChanged };

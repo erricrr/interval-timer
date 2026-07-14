@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
-import { LogOut } from "lucide-react";
-import { auth, provider } from "../lib/firebase";
+import { useState } from "react";
+import { LogOut, Loader2 } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 interface LoginButtonProps {
   className?: string;
@@ -17,38 +16,29 @@ const GoogleIcon = () => (
 );
 
 export function LoginButton({ className }: LoginButtonProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const { user, isAuthLoading, signIn, signOut } = useAuth();
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   const handleLogin = async () => {
+    setIsSigningIn(true);
     try {
-      const result = await signInWithPopup(auth, provider);
-      console.log("User:", result.user);
+      await signIn();
     } catch (error) {
       console.error("Login error:", error);
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
-      console.log("User signed out");
-      window.location.reload();
+      await signOut();
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
 
-  if (loading) {
+  if (isAuthLoading) {
     return (
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-full bg-text-subtle/10 animate-pulse" />
@@ -56,7 +46,6 @@ export function LoginButton({ className }: LoginButtonProps) {
     );
   }
 
-  // Show user avatar and logout button when logged in
   if (user) {
     return (
       <div className="flex items-center gap-2">
@@ -85,15 +74,19 @@ export function LoginButton({ className }: LoginButtonProps) {
     );
   }
 
-  // Show Google icon + Sign in text when not logged in
   return (
     <button
       onClick={handleLogin}
-      className={`flex items-center gap-2 px-3 py-2 text-xs sm:text-sm text-text-muted hover:text-text hover:bg-text-subtle/10 rounded-full transition-all hover:scale-105 active:scale-95 ${className || ""}`}
+      disabled={isSigningIn}
+      className={`flex items-center gap-2 px-3 py-2 text-xs sm:text-sm text-text-muted hover:text-text hover:bg-text-subtle/10 rounded-full transition-all hover:scale-105 active:scale-95 disabled:opacity-60 disabled:pointer-events-none ${className || ""}`}
       title="Sign in with Google"
     >
-      <GoogleIcon />
-      <span>Sign in</span>
+      {isSigningIn ? (
+        <Loader2 size={16} className="animate-spin" />
+      ) : (
+        <GoogleIcon />
+      )}
+      <span>{isSigningIn ? "Signing in..." : "Sign in"}</span>
     </button>
   );
 }

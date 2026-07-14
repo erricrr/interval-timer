@@ -6,19 +6,32 @@
       "src": "/favicon-192x192.png",
       "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
     },
     {
       "src": "/favicon-512x512.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ],
   "start_url": "/",
-  "background_color": "#151619",
+  "background_color": "#1a1520",
   "display": "standalone",
   "scope": "/",
-  "theme_color": "#F27D26",
+  "theme_color": "#1a1520",
+  "orientation": "portrait",
   "description": "Interval workout timer for treadmill runners."
 }

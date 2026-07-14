@@ -244,14 +244,46 @@ class AudioEngine {
     return id;
   }
 
-  async addAudioFromURL(id: string, name: string, url: string): Promise<void> {
-    const duration = await this.probeAudioDuration(url);
+  async probeFileDuration(file: File): Promise<number> {
+    const url = URL.createObjectURL(file);
+    try {
+      return await this.probeAudioDuration(url);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async addAudioFromURL(
+    id: string,
+    name: string,
+    url: string,
+    knownDuration?: number,
+    options?: { revokeOnRemove?: boolean },
+  ): Promise<void> {
+    const duration =
+      knownDuration !== undefined && knownDuration > 0
+        ? knownDuration
+        : await this.probeAudioDuration(url);
     this.trackEntries.set(id, {
       name,
       url,
       duration,
-      revokeOnRemove: false,
+      revokeOnRemove: options?.revokeOnRemove ?? false,
     });
+  }
+
+  clearLibrary() {
+    this.stopAll();
+    for (const [id, entry] of this.trackEntries.entries()) {
+      if (entry.revokeOnRemove) {
+        try {
+          URL.revokeObjectURL(entry.url);
+        } catch {
+          /* ignore */
+        }
+      }
+      this.trackEntries.delete(id);
+    }
   }
 
   getAudioLibrary() {
@@ -396,10 +428,19 @@ class AudioEngine {
     }
   }
 
+  private getCurrentPlaylistTrack(): PlaylistTrack | null {
+    if (!this.playlistState) return null;
+    const { playlist, currentIndex } = this.playlistState;
+    if (currentIndex < 0 || currentIndex >= playlist.length) return null;
+    return playlist[currentIndex] ?? null;
+  }
+
   resumePlaylist() {
     if (!this.playlistState || !this.playlistState.isPaused) return;
 
-    const track = this.playlistState.playlist[this.playlistState.currentIndex];
+    const track = this.getCurrentPlaylistTrack();
+    if (!track) return;
+
     const entry = this.trackEntries.get(track.audioId);
     if (!entry?.url) return;
 
@@ -419,7 +460,9 @@ class AudioEngine {
   private playNextInPlaylist() {
     if (!this.playlistState || this.playlistState.isPaused) return;
 
-    const track = this.playlistState.playlist[this.playlistState.currentIndex];
+    const track = this.getCurrentPlaylistTrack();
+    if (!track) return;
+
     const entry = this.trackEntries.get(track.audioId);
 
     if (!entry?.url) {
@@ -441,7 +484,8 @@ class AudioEngine {
     this.playlistState.currentOffset = 0;
     if (this.playlistState.isPaused) {
       // Keep paused state intact: swap loaded track without starting playback.
-      const track = this.playlistState.playlist[this.playlistState.currentIndex];
+      const track = this.getCurrentPlaylistTrack();
+      if (!track) return true;
       const entry = this.trackEntries.get(track.audioId);
       if (!entry?.url) return true;
       this.setPlaylistTrackSource(track.audioId, entry.url);
@@ -788,7 +832,19 @@ class AudioEngine {
     if (!playlist || playlist.length === 0) return;
 
     const withUrl = playlist.filter((t) => this.trackEntries.get(t.audioId)?.url);
-    if (withUrl.length === 0) return;
+    if (withUrl.length === 0) {
+      if (playlist.length > 0) {
+        console.warn(
+          "Playlist tracks could not be played — audio may still be loading or unavailable.",
+        );
+      }
+      return;
+    }
+    if (withUrl.length < playlist.length) {
+      console.warn(
+        `${playlist.length - withUrl.length} track(s) skipped — audio not loaded yet.`,
+      );
+    }
 
     const totalPlaylistDuration = this.playlistTotalDuration(withUrl);
     const shouldLoop =
@@ -809,49 +865,12 @@ class AudioEngine {
     this.playNextInPlaylist();
   }
 
-  // Group-aware playback: starts fresh or continues within same group
-  playPlaylistForGroup(
-    playlist: PlaylistTrack[],
-    groupDuration: number,
-    groupIndex: number,
-    isSameGroup: boolean,
-  ) {
-    if (!isSameGroup) {
-      this.stopAll();
-      if (!playlist || playlist.length === 0) return;
-
-      const withUrl = playlist.filter((t) => this.trackEntries.get(t.audioId)?.url);
-      if (withUrl.length === 0) return;
-
-      const totalPlaylistDuration = this.playlistTotalDuration(withUrl);
-      const shouldLoop =
-        totalPlaylistDuration === 0 ||
-        totalPlaylistDuration < groupDuration;
-
-      this.playlistState = {
-        playlist: withUrl,
-        intervalDuration: groupDuration,
-        currentIndex: 0,
-        currentOffset: 0,
-        isPaused: false,
-        shouldLoop,
-        currentGroupIndex: groupIndex,
-        groupStartTime: this.ctx?.currentTime || 0,
-      };
-
-      this.playNextInPlaylist();
-    }
-    // Same group — audio continues playing
-  }
-
-  isInGroup(groupIndex: number): boolean {
-    return this.playlistState?.currentGroupIndex === groupIndex;
-  }
-
   getCurrentSongInfo() {
     if (!this.playlistState || !this.playlistAudio?.src) return null;
 
-    const track = this.playlistState.playlist[this.playlistState.currentIndex];
+    const track = this.getCurrentPlaylistTrack();
+    if (!track) return null;
+
     const entry = this.trackEntries.get(track.audioId);
     if (!entry) return null;
 

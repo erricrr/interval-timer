@@ -41,40 +41,37 @@ export function buildColorGroups(
   const validAudioIds = new Set(audioLibrary.map(a => a.id));
 
   // Aggregate by color across all intervals
-  const colorMap = new Map<string, ColorGroup>();
+  const colorMap = new Map<string, { indices: number[]; totalDuration: number; tracks: PlaylistTrack[] }>();
 
   for (let i = 0; i < intervals.length; i++) {
     const interval = intervals[i];
     const existing = colorMap.get(interval.color);
 
+    // Filter valid tracks for this interval
+    const validTracks = shouldFilter
+      ? (interval.playlist || []).filter(track => validAudioIds.has(track.audioId))
+      : [...(interval.playlist || [])];
+
     if (existing) {
       existing.indices.push(i);
       existing.totalDuration += interval.duration;
-      // Merge playlists, avoiding duplicate audioIds and optionally filtering out invalid tracks
-      const existingIds = new Set(existing.mergedPlaylist.map(t => t.audioId));
-      for (const track of interval.playlist || []) {
-        const isValid = !shouldFilter || validAudioIds.has(track.audioId);
-        if (!existingIds.has(track.audioId) && isValid) {
-          existing.mergedPlaylist.push(track);
-          existingIds.add(track.audioId);
-        }
-      }
+      existing.tracks.push(...validTracks);
     } else {
-      // Filter out invalid tracks only if audio library is loaded
-      const validPlaylist = shouldFilter
-        ? (interval.playlist || []).filter(track => validAudioIds.has(track.audioId))
-        : [...(interval.playlist || [])];
-
       colorMap.set(interval.color, {
-        color: interval.color,
         indices: [i],
         totalDuration: interval.duration,
-        mergedPlaylist: validPlaylist,
+        tracks: validTracks,
       });
     }
   }
 
-  return Array.from(colorMap.values());
+  // Build final ColorGroup array with fresh objects
+  return Array.from(colorMap.entries()).map(([color, data]) => ({
+    color,
+    indices: data.indices,
+    totalDuration: data.totalDuration,
+    mergedPlaylist: data.tracks,
+  }));
 }
 
 export function getGroupForInterval(groups: ColorGroup[], intervalColor: string): ColorGroup | undefined {

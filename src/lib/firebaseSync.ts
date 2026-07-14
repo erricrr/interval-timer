@@ -1,6 +1,6 @@
 // src/lib/firebaseSync.ts
 import {
-  doc, setDoc, getDoc, collection, getDocs, deleteDoc
+  doc, setDoc, getDoc, collection, getDocs, deleteDoc, query, limit
 } from "firebase/firestore";
 import {
   ref, uploadBytes, getDownloadURL, deleteObject
@@ -30,7 +30,11 @@ export interface AudioLibraryEntry {
   name: string;
   storagePath: string;
   downloadURL: string;
+  duration?: number;
 }
+
+const MAX_SAVED_WORKOUTS = 50;
+const MAX_AUDIO_LIBRARY_ENTRIES = 100;
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
@@ -67,7 +71,11 @@ export async function saveWorkoutToLibrary(uid: string, workout: SavedWorkout): 
 }
 
 export async function loadSavedWorkouts(uid: string): Promise<SavedWorkout[]> {
-  const snap = await getDocs(collection(db, "users", uid, "savedWorkouts"));
+  const workoutsQuery = query(
+    collection(db, "users", uid, "savedWorkouts"),
+    limit(MAX_SAVED_WORKOUTS),
+  );
+  const snap = await getDocs(workoutsQuery);
   return snap.docs.map((d) => normalizeSavedWorkout(d.data()));
 }
 
@@ -218,10 +226,6 @@ export async function saveOrReplaceWorkout(
   const titleToSave = data.workoutTitle?.trim().toLowerCase() || "New session";
 
   const cleanedIntervals = data.intervals.map(cleanInterval);
-  console.log("saveOrReplaceWorkout - Cleaned intervals being saved:");
-  cleanedIntervals.forEach(i => {
-    console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
-  });
 
   // Save to current workout document first
   const currentWorkoutData: WorkoutData = {
@@ -260,12 +264,7 @@ export async function saveOrReplaceWorkout(
 export async function loadWorkout(uid: string): Promise<WorkoutData | null> {
   const snap = await getDoc(doc(db, "users", uid, "workouts", CURRENT_WORKOUT_ID));
   if (snap.exists()) {
-    const data = normalizeWorkoutData(snap.data() as Partial<WorkoutData>);
-    console.log("loadWorkout - Raw data from Firebase:");
-    data.intervals?.forEach(i => {
-      console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
-    });
-    return data;
+    return normalizeWorkoutData(snap.data() as Partial<WorkoutData>);
   }
   return null;
 }
@@ -284,14 +283,21 @@ export async function loadCurrentWorkoutState(uid: string): Promise<WorkoutData 
 export async function uploadAudioTrack(
   uid: string,
   file: File,
-  id: string
+  id: string,
+  duration?: number,
 ): Promise<AudioLibraryEntry> {
   const storagePath = `users/${uid}/audio/${id}_${file.name}`;
   const storageRef = ref(storage, storagePath);
   await uploadBytes(storageRef, file);
   const downloadURL = await getDownloadURL(storageRef);
 
-  const entry: AudioLibraryEntry = { id, name: file.name, storagePath, downloadURL };
+  const entry: AudioLibraryEntry = {
+    id,
+    name: file.name,
+    storagePath,
+    downloadURL,
+    ...(duration !== undefined && duration > 0 ? { duration } : {}),
+  };
   await setDoc(doc(db, "users", uid, "audioLibrary", id), entry);
   return entry;
 }
@@ -302,6 +308,10 @@ export async function deleteAudioTrack(uid: string, id: string, storagePath: str
 }
 
 export async function loadAudioLibrary(uid: string): Promise<AudioLibraryEntry[]> {
-  const snap = await getDocs(collection(db, "users", uid, "audioLibrary"));
+  const audioQuery = query(
+    collection(db, "users", uid, "audioLibrary"),
+    limit(MAX_AUDIO_LIBRARY_ENTRIES),
+  );
+  const snap = await getDocs(audioQuery);
   return snap.docs.map((d) => d.data() as AudioLibraryEntry);
 }

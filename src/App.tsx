@@ -49,7 +49,7 @@ import { Modal, ConfirmModal, LoginModal } from "./components/Modal";
 import { Button, CloseButton, type ButtonProps } from "./components/Button";
 import { Overlay } from "./components/Overlay";
 import { NowPlayingPanel, type SongInfo } from "./components/NowPlayingPanel";
-import { auth, onAuthStateChanged } from "./lib/firebase";
+import { useAuth } from "./contexts/AuthContext";
 import {
   saveSettings,
   loadSettings,
@@ -67,7 +67,10 @@ import {
   normalizeSavedWorkout,
   normalizeWorkoutData,
 } from "./lib/firebaseSync";
-import type { Settings as FirebaseSettings } from "./lib/firebaseSync";
+import type {
+  Settings as FirebaseSettings,
+  AudioLibraryEntry,
+} from "./lib/firebaseSync";
 
 const createStarterIntervals = (): Interval[] => [
   { id: crypto.randomUUID(), name: "Warm Up", duration: 10, notes: "", color: COLORS[1] },
@@ -158,13 +161,14 @@ const IntervalCard = ({
   const snapOpenX = -100; // How far the card slides to reveal buttons
   const snapClosedX = 0;
 
-  // Get the merged playlist for this interval's color group
+  // Get the merged playlist for this interval's color group (used for playback)
   const colorGroup = useMemo(() =>
     getGroupForInterval(colorGroups, interval.color),
     [colorGroups, interval.color]
   );
   const mergedPlaylist = colorGroup?.mergedPlaylist || [];
-  const trackCount = mergedPlaylist.length;
+  // Use the interval's own playlist count for display, not the merged count
+  const trackCount = interval.playlist?.length || 0;
 
   // Refs for click-outside detection
   const actionsButtonRef = useRef<HTMLButtonElement>(null);
@@ -702,10 +706,9 @@ const IntervalCard = ({
 interface PlaylistDrawerProps {
   isOpen: boolean;
   interval: Interval | null;
-  colorGroups: ColorGroup[];
   audioLibrary: { id: string; name: string }[];
   onClose: () => void;
-  onUpdatePlaylist: (playlist: PlaylistTrack[]) => void;
+  onUpdatePlaylist: (updater: (currentPlaylist: PlaylistTrack[]) => PlaylistTrack[]) => void;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveAudio: (id: string) => void;
   isUploading?: boolean;
@@ -714,7 +717,6 @@ interface PlaylistDrawerProps {
 const PlaylistDrawer = ({
   isOpen,
   interval,
-  colorGroups,
   audioLibrary,
   onClose,
   onUpdatePlaylist,
@@ -727,12 +729,8 @@ const PlaylistDrawer = ({
   const intervalColor = interval?.color || "#F27D26";
   const intervalName = interval?.name || "Untitled";
 
-  // Get the merged playlist for this interval's color group
-  const colorGroup = useMemo(() =>
-    interval ? getGroupForInterval(colorGroups, intervalColor) : undefined,
-    [colorGroups, interval, intervalColor]
-  );
-  const mergedPlaylist = colorGroup?.mergedPlaylist || [];
+  // Use only this interval's playlist, not the merged playlist from all intervals with same color
+  const currentPlaylist = interval?.playlist || [];
 
   const formatAudioName = (name: string) => {
     // Remove file extension
@@ -771,17 +769,17 @@ const PlaylistDrawer = ({
               Current Tracks
             </h3>
             <span className="text-[10px] font-mono text-text-subtle">
-              {mergedPlaylist.length} Total
+              {currentPlaylist.length} Total
             </span>
           </div>
 
           <Reorder.Group
             axis="y"
-            values={mergedPlaylist}
-            onReorder={(newPlaylist) => onUpdatePlaylist(newPlaylist)}
+            values={currentPlaylist}
+            onReorder={(newPlaylist) => onUpdatePlaylist(() => newPlaylist)}
             className="space-y-2"
           >
-            {mergedPlaylist.length === 0 ? (
+            {currentPlaylist.length === 0 ? (
               <div className="p-8 border-2 border-dashed border-text-subtle/10 rounded-2xl flex flex-col items-center justify-center text-center gap-3">
                 <Music size={24} className="text-text-subtle/30" />
                 <p className="text-xs text-text-subtle/50 italic">
@@ -789,13 +787,13 @@ const PlaylistDrawer = ({
                 </p>
               </div>
             ) : (
-              mergedPlaylist.map((track) => {
+              currentPlaylist.map((track, trackIndex) => {
                 const audio = audioLibrary.find(
                   (a) => a.id === track.audioId,
                 );
                 return (
                   <Reorder.Item
-                    key={track.instanceId || track.audioId}
+                    key={track.instanceId || `${track.audioId}-${trackIndex}`}
                     value={track}
                     className="glass p-3 rounded-xl flex items-center gap-3 group/item border border-text-subtle/10 hover:border-text-subtle/20 transition-colors"
                   >
@@ -809,10 +807,9 @@ const PlaylistDrawer = ({
                     </div>
                     <button
                       onClick={() => {
-                        const nextPlaylist = mergedPlaylist.filter(
-                          (t) => t.instanceId !== track.instanceId,
+                        onUpdatePlaylist((current) =>
+                          current.filter((t) => t.instanceId !== track.instanceId)
                         );
-                        onUpdatePlaylist(nextPlaylist);
                       }}
                       className="p-1.5 text-text-subtle hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
                       aria-label="Remove track"
@@ -879,8 +876,8 @@ const PlaylistDrawer = ({
                   {/* Main clickable area - adds to playlist */}
                   <button
                     onClick={() =>
-                      onUpdatePlaylist([
-                        ...mergedPlaylist,
+                      onUpdatePlaylist((current) => [
+                        ...current,
                         {
                           instanceId: Math.random()
                             .toString(36)
@@ -975,12 +972,13 @@ export default function App() {
   const [workoutToDelete, setWorkoutToDelete] = useState<{ id: string; title: string } | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  // Firebase auth state
-  const [user, setUser] = useState(auth.currentUser);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const { user, isAuthLoading } = useAuth();
   const [isDataLoading, setIsDataLoading] = useState(false);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [audioStoragePaths, setAudioStoragePaths] = useState<Record<string, string>>({});
   const hasLoadedInitialData = useRef(false);
+  const hasAutoLoadedWorkout = useRef(false);
+  const skipSettingsAutoSave = useRef(false);
 
   // Alarm settings state
   const [alarmVolume, setAlarmVolume] = useState(0.5);
@@ -1096,74 +1094,72 @@ export default function App() {
   const countdownTimelineRef = useRef<HTMLDivElement>(null);
   const intervalRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Auth listener - properly gated data loading
+  // Load cloud data when user signs in
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      console.log("Auth user:", currentUser?.uid);
-      setUser(currentUser);
-      setIsAuthLoading(false);
+    if (isAuthLoading) return;
 
-      if (!currentUser) {
-        // User is not logged in, clear Firestore-dependent state
-        setIsDataLoading(false);
-        return;
-      }
+    if (!user) {
+      setIsDataLoading(false);
+      setIsAudioLoading(false);
+      hasLoadedInitialData.current = false;
+      audioEngine.clearLibrary();
+      setAudioLibrary([]);
+      setAudioStoragePaths({});
+      return;
+    }
 
-      // User is logged in - load all Firestore data
+    let cancelled = false;
+
+    const loadUserData = async () => {
       setIsDataLoading(true);
+      setIsAudioLoading(true);
+      hasLoadedInitialData.current = false;
+      audioEngine.clearLibrary();
+
+      let audioEntries: AudioLibraryEntry[] = [];
 
       try {
-        // Load workout data, settings, and saved workouts in parallel
-        const [workoutData, settings, workouts] = await Promise.all([
-          loadWorkout(currentUser.uid),
-          loadSettings(currentUser.uid),
-          loadSavedWorkouts(currentUser.uid).catch((err) => {
+        const [workoutData, settings, workouts, loadedAudio] = await Promise.all([
+          loadWorkout(user.uid),
+          loadSettings(user.uid),
+          loadSavedWorkouts(user.uid).catch((err) => {
             console.error("Failed to load saved workouts:", err);
+            return [];
+          }),
+          loadAudioLibrary(user.uid).catch((err) => {
+            console.error("Failed to load audio library:", err);
             return [];
           }),
         ]);
 
-        console.log("Loaded workout data:", workoutData ? "yes" : "no");
-        console.log("Loaded settings:", settings ? "yes" : "no");
-        console.log("Loaded saved workouts count:", workouts.length);
+        if (cancelled) return;
 
-        // Check if current workout exists in saved workouts library
+        audioEntries = loadedAudio;
+
         let shouldLoadCurrentWorkout = false;
         if (workoutData && workouts.length > 0) {
-          // Verify the current workout still exists in the library by matching title
           const currentWorkoutExists = workouts.some(
-            w => w.title.trim().toLowerCase() === workoutData.workoutTitle?.trim().toLowerCase()
+            (w) =>
+              w.title.trim().toLowerCase() ===
+              workoutData.workoutTitle?.trim().toLowerCase(),
           );
           shouldLoadCurrentWorkout = currentWorkoutExists;
-          if (!currentWorkoutExists) {
-            console.log("Current workout no longer exists in library, will load first saved workout");
-          }
         } else if (workoutData) {
-          // Has current workout but no saved workouts - keep the current workout
           shouldLoadCurrentWorkout = true;
         }
 
         if (shouldLoadCurrentWorkout && workoutData) {
           const normalizedCurrentWorkout = normalizeWorkoutData(workoutData);
-          console.log("Loading current workout intervals:");
-          normalizedCurrentWorkout.intervals.forEach(i => {
-            console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
-          });
           setWorkoutTitle(normalizedCurrentWorkout.workoutTitle);
           setIntervals(normalizedCurrentWorkout.intervals);
         } else if (workouts.length > 0) {
-          // No valid current workout but has saved workouts - load the first one
           const firstWorkout = normalizeSavedWorkout(workouts[0]);
-          console.log("Auto-loading first saved workout:", firstWorkout.title);
-          console.log("First workout intervals:");
-          firstWorkout.intervals.forEach(i => {
-            console.log(`  - ${i.name} (${i.color}): ${i.playlist?.length || 0} tracks`, i.playlist);
-          });
           setWorkoutTitle(firstWorkout.title);
           setIntervals(firstWorkout.intervals);
         }
 
         if (settings) {
+          skipSettingsAutoSave.current = true;
           setAlarmVolume(settings.alarmVolume);
           setAlarmPreset(settings.alarmPreset);
           setCustomAlarmName(settings.customAlarmName);
@@ -1173,50 +1169,67 @@ export default function App() {
         }
 
         setSavedWorkouts(workouts.map(normalizeSavedWorkout));
-
-        // Mark that initial data has been loaded
         hasLoadedInitialData.current = true;
       } catch (err) {
         console.error("Firestore failed (loadUserData):", err);
+      } finally {
+        if (!cancelled) {
+          setIsDataLoading(false);
+        }
       }
 
-      // Load audio library separately with its own error handling
-      try {
-        const audioEntries = await loadAudioLibrary(currentUser.uid);
-        console.log("Loaded audio count from Firestore:", audioEntries.length);
+      if (cancelled || audioEntries.length === 0) {
+        if (!cancelled) {
+          setAudioLibrary([]);
+          setAudioStoragePaths({});
+          setIsAudioLoading(false);
+        }
+        return;
+      }
 
+      try {
         const paths: Record<string, string> = {};
         const libraryForUI: { id: string; name: string }[] = [];
 
         await Promise.all(
           audioEntries.map(async (entry) => {
             try {
-              await audioEngine.addAudioFromURL(entry.id, entry.name, entry.downloadURL);
+              await audioEngine.addAudioFromURL(
+                entry.id,
+                entry.name,
+                entry.downloadURL,
+                entry.duration,
+              );
               paths[entry.id] = entry.storagePath;
               libraryForUI.push({ id: entry.id, name: entry.name });
             } catch (audioErr) {
               console.error(`Failed to load audio ${entry.name}:`, audioErr);
             }
-          })
+          }),
         );
 
-        setAudioStoragePaths(paths);
-        // UI is driven by Firestore data, not AudioEngine internal state
-        setAudioLibrary(libraryForUI);
-        console.log("Audio library set for UI:", libraryForUI.length);
+        if (!cancelled) {
+          setAudioStoragePaths(paths);
+          setAudioLibrary(libraryForUI);
+        }
       } catch (err) {
         console.error("Firestore failed (loadAudio):", err);
       } finally {
-        setIsDataLoading(false);
+        if (!cancelled) {
+          setIsAudioLoading(false);
+        }
       }
-    });
+    };
 
-    return () => unsubscribe();
-  }, []);
+    void loadUserData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, isAuthLoading]);
 
   useEffect(() => {
-    // Only load from localStorage if user is not logged in (fallback)
-    if (user) return;
+    if (user || isAuthLoading) return;
 
     const saved = localStorage.getItem("tempotread_workouts");
     if (saved) {
@@ -1257,34 +1270,26 @@ export default function App() {
         console.error("Failed to load alarm settings from localStorage");
       }
     }
-  }, []);
+  }, [user, isAuthLoading]);
 
   useEffect(() => {
-    // Auto-load first saved workout for non-logged-in users
-    if (user !== null || isAuthLoading) return; // Wait for auth to complete
-    if (savedWorkouts.length === 0) return; // No saved workouts to load
+    if (user !== null || isAuthLoading) return;
+    if (savedWorkouts.length === 0) return;
+    if (hasAutoLoadedWorkout.current) return;
 
-    // Check if current workout title exists in saved workouts library
-    const currentWorkoutExists = savedWorkouts.some(
-      w => w.title.trim().toLowerCase() === workoutTitle.trim().toLowerCase()
-    );
-
-    // Check if we're still showing default intervals
-    const isDefaultIntervals = intervals.length === 3 &&
+    const isDefaultIntervals =
+      intervals.length === 3 &&
       intervals[0].name === "Warm Up" &&
       intervals[1].name === "Run" &&
       intervals[2].name === "Recovery";
 
-    // Load first saved workout if:
-    // 1. Showing default intervals, OR
-    // 2. Current workout title doesn't exist in saved workouts (was deleted)
-    if (isDefaultIntervals || !currentWorkoutExists) {
+    if (isDefaultIntervals) {
+      hasAutoLoadedWorkout.current = true;
       const firstWorkout = normalizeSavedWorkout(savedWorkouts[0]);
-      console.log("Auto-loading first saved workout for non-logged-in user:", firstWorkout.title);
       setWorkoutTitle(firstWorkout.title);
       setIntervals(firstWorkout.intervals);
     }
-  }, [savedWorkouts, user, isAuthLoading, intervals, workoutTitle]);
+  }, [savedWorkouts, user, isAuthLoading, intervals]);
 
   useEffect(() => {
     // Only persist to localStorage when user is not logged in
@@ -1311,7 +1316,11 @@ export default function App() {
 
   // Auto-save alarm settings to Firebase for logged-in users (debounced)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !hasLoadedInitialData.current) return;
+    if (skipSettingsAutoSave.current) {
+      skipSettingsAutoSave.current = false;
+      return;
+    }
 
     setIsSavingSettings(true);
     const timeoutId = setTimeout(async () => {
@@ -1633,25 +1642,57 @@ export default function App() {
       try {
         for (const file of supportedFiles) {
           const id = crypto.randomUUID();
+          const duration = await audioEngine.probeFileDuration(file);
 
           if (user) {
-            // Upload to Firebase when logged in
             try {
-              const entry = await uploadAudioTrack(user.uid, file, id);
-              await audioEngine.addAudioFromURL(entry.id, entry.name, entry.downloadURL);
-              setAudioStoragePaths((prev) => ({ ...prev, [id]: entry.storagePath }));
+              const entry = await uploadAudioTrack(user.uid, file, id, duration);
+              try {
+                await audioEngine.addAudioFromURL(
+                  entry.id,
+                  entry.name,
+                  entry.downloadURL,
+                  entry.duration ?? duration,
+                );
+              } catch (loadErr) {
+                console.error("Failed to load Firebase audio URL:", loadErr);
+                const blobUrl = URL.createObjectURL(file);
+                await audioEngine.addAudioFromURL(
+                  entry.id,
+                  entry.name,
+                  blobUrl,
+                  duration,
+                  { revokeOnRemove: true },
+                );
+                alert(
+                  "Audio uploaded to cloud but couldn't load from remote URL. Using local playback.",
+                );
+              }
+              setAudioStoragePaths((prev) => ({
+                ...prev,
+                [entry.id]: entry.storagePath,
+              }));
+              setAudioLibrary((prev) => [
+                ...prev.filter((item) => item.id !== entry.id),
+                { id: entry.id, name: entry.name },
+              ]);
             } catch (err) {
-              console.error("Failed to upload/load Firebase audio:", err);
-              alert("Audio uploaded to cloud but couldn't load due to CORS. Falling back to local.");
-              // Fallback to local
-              await audioEngine.addCustomAudio(file);
+              console.error("Failed to upload Firebase audio:", err);
+              alert("Failed to upload audio to cloud. Saving locally instead.");
+              const localId = await audioEngine.addCustomAudio(file);
+              setAudioLibrary((prev) => [
+                ...prev.filter((item) => item.id !== localId),
+                { id: localId, name: file.name },
+              ]);
             }
           } else {
-            // Fallback: local only
-            await audioEngine.addCustomAudio(file);
+            const localId = await audioEngine.addCustomAudio(file);
+            setAudioLibrary((prev) => [
+              ...prev.filter((item) => item.id !== localId),
+              { id: localId, name: file.name },
+            ]);
           }
         }
-        setAudioLibrary(audioEngine.getAudioLibrary());
       } catch (err) {
         console.error("Failed to load audio:", err);
         alert(
@@ -1663,24 +1704,27 @@ export default function App() {
     }
   };
 
-  const removeAudio = (id: string) => {
-    // Fire Firebase delete in background if user is logged in
+  const removeAudio = async (id: string) => {
     if (user && audioStoragePaths[id]) {
-      deleteAudioTrack(user.uid, id, audioStoragePaths[id]);
-      setAudioStoragePaths((prev) => {
-        const { [id]: _, ...rest } = prev;
-        return rest;
-      });
+      try {
+        await deleteAudioTrack(user.uid, id, audioStoragePaths[id]);
+        setAudioStoragePaths((prev) => {
+          const { [id]: _, ...rest } = prev;
+          return rest;
+        });
+      } catch (err) {
+        console.error("Failed to delete audio from cloud:", err);
+        alert("Failed to delete track from cloud. Please try again.");
+        return;
+      }
     }
 
-    // Local cleanup (synchronous)
     audioEngine.removeAudio(id);
-    setAudioLibrary(audioEngine.getAudioLibrary());
-    // Clear audioId from any intervals that used this track
-    setIntervals(
-      intervals.map((i) => ({
-        ...i,
-        playlist: i.playlist?.filter((track) => track.audioId !== id),
+    setAudioLibrary((prev) => prev.filter((item) => item.id !== id));
+    setIntervals((prev) =>
+      prev.map((interval) => ({
+        ...interval,
+        playlist: interval.playlist?.filter((track) => track.audioId !== id),
       })),
     );
   };
@@ -1709,15 +1753,17 @@ export default function App() {
   }, [currentIndex, state]);
 
   const addInterval = () => {
-    const newInterval: Interval = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: "New Interval",
-      duration: 60,
-      notes: "",
-      color: COLORS[intervals.length % COLORS.length],
-      halfwayAlert: undefined, // Will inherit from global default
-    };
-    setIntervals([...intervals, newInterval]);
+    setIntervals((prev) => {
+      const newInterval: Interval = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: "New Interval",
+        duration: 60,
+        notes: "",
+        color: COLORS[prev.length % COLORS.length],
+        halfwayAlert: undefined,
+      };
+      return [...prev, newInterval];
+    });
   };
 
   const scrollTimeline = (direction: "left" | "right") => {
@@ -1730,38 +1776,26 @@ export default function App() {
     }
   };
 
-  const updatePlaylistForColorGroup = (intervalColor: string, playlist: PlaylistTrack[]) => {
-    console.log("updatePlaylistForColorGroup called:", {
-      color: intervalColor,
-      playlistLength: playlist.length,
-      playlist: playlist
-    });
-
-    // Update the playlist for ALL intervals with the same color
-    const updatedIntervals = intervals.map((i) => {
-      if (i.color === intervalColor) {
-        console.log(`Updating interval "${i.name}" (${i.id}) with ${playlist.length} tracks`);
-        return { ...i, playlist };
-      }
-      return i;
-    });
-
-    console.log("Updated intervals:", updatedIntervals.map(i => ({
-      name: i.name,
-      color: i.color,
-      playlistCount: i.playlist?.length || 0
-    })));
-
-    setIntervals(updatedIntervals);
+  const updatePlaylistForColorGroup = (
+    intervalColor: string,
+    playlist: PlaylistTrack[],
+  ) => {
+    setIntervals((prev) =>
+      prev.map((interval) =>
+        interval.color === intervalColor ? { ...interval, playlist } : interval,
+      ),
+    );
   };
 
   const deleteInterval = (id: string) => {
-    setIntervals(intervals.filter((i) => i.id !== id));
+    setIntervals((prev) => prev.filter((interval) => interval.id !== id));
   };
 
   const updateInterval = (id: string, updates: Partial<Interval>) => {
-    setIntervals(
-      intervals.map((i) => (i.id === id ? { ...i, ...updates } : i)),
+    setIntervals((prev) =>
+      prev.map((interval) =>
+        interval.id === id ? { ...interval, ...updates } : interval,
+      ),
     );
   };
 
@@ -1814,6 +1848,13 @@ export default function App() {
 
             {/* Login & Settings */}
             <div className="flex items-center gap-2">
+              {isAudioLoading && (
+                <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-text-subtle">
+                  <Loader2 size={12} className="animate-spin" />
+                  <span className="hidden sm:inline">Loading tracks</span>
+                  <span className="sm:hidden">Tracks...</span>
+                </span>
+              )}
               <LoginButton />
               <button
                 onClick={() => setShowSettings(true)}
@@ -1877,7 +1918,7 @@ export default function App() {
 
         <main className="flex-1 flex flex-col gap-4">
           {/* Timeline Section */}
-          <div className="flex flex-col h-[calc(100vh-280px)]">
+          <div className="flex flex-col h-[calc(100dvh-280px)]">
             {/* Workout Timeline Guide - Sticky with Navigation */}
             <div className="sticky top-0 z-20 bg-bg py-2 -mx-4 px-4 border-b border-text-subtle/10">
               <div className="flex items-center gap-2">
@@ -2733,13 +2774,17 @@ export default function App() {
         <PlaylistDrawer
           isOpen={Boolean(editingIntervalId && intervals.find((i) => i.id === editingIntervalId))}
           interval={intervals.find((i) => i.id === editingIntervalId) || null}
-          colorGroups={colorGroups}
           audioLibrary={audioLibrary}
           onClose={() => setEditingIntervalId(null)}
-          onUpdatePlaylist={(playlist) => {
-            const interval = intervals.find((i) => i.id === editingIntervalId);
-            if (interval) {
-              updatePlaylistForColorGroup(interval.color, playlist);
+          onUpdatePlaylist={(updater) => {
+            if (editingIntervalId) {
+              setIntervals((prev) =>
+                prev.map((interval) =>
+                  interval.id === editingIntervalId
+                    ? { ...interval, playlist: updater(interval.playlist || []) }
+                    : interval
+                )
+              );
             }
           }}
           onFileUpload={handleFileUpload}
