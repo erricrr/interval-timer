@@ -75,11 +75,35 @@ export function useWorkoutTimer({
   useEffect(() => {
     if (state !== "running") return;
 
-    const id = window.setInterval(() => {
+    let id = 0;
+
+    const finishWorkout = () => {
+      window.clearInterval(id);
+      audioEngine.playWorkoutComplete();
+      audioEngine.stopAll();
+      setState("finished");
+      setTimeLeft(0);
+    };
+
+    id = window.setInterval(() => {
       setTimeLeft((prev) => {
         const next = Math.max(0, prev - 1);
         const w = workoutSyncRef.current;
-        const currentInterval = w.intervals[w.currentIndex] || w.intervals[0];
+
+        if (w.intervals.length === 0) {
+          finishWorkout();
+          return 0;
+        }
+
+        if (
+          w.currentIndex < 0 ||
+          w.currentIndex >= w.intervals.length
+        ) {
+          finishWorkout();
+          return 0;
+        }
+
+        const currentInterval = w.intervals[w.currentIndex];
 
         const shouldPlayHalfway =
           currentInterval.halfwayAlert ?? w.halfwaySoundEnabled;
@@ -127,9 +151,7 @@ export function useWorkoutTimer({
             return nextInterval.duration;
           }
 
-          audioEngine.playWorkoutComplete();
-          audioEngine.stopAll();
-          setState("finished");
+          finishWorkout();
           return 0;
         }
         return next;
