@@ -22,7 +22,7 @@ export function WorkoutHome({
 }: WorkoutHomeProps) {
   if (savedWorkouts.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-8 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -54,7 +54,7 @@ export function WorkoutHome({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto pb-32 pr-2 custom-scrollbar">
+    <div className="app-scroll pb-32 pr-2 custom-scrollbar">
       <div className="mb-6">
         <h2 className="text-lg md:text-xl font-bold text-text-muted mb-2">
           Your Workouts

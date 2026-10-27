@@ -40,25 +40,39 @@
 }
 
 @layer base {
+  html {
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
   body {
-    @apply font-sans antialiased overflow-hidden;
+    @apply font-sans antialiased h-full overflow-hidden;
     background-color: var(--color-bg);
     color: var(--color-text);
     background-image: radial-gradient(circle at 50% -20%, var(--color-surface) 0%, var(--color-bg) 100%);
     background-attachment: fixed;
+    overscroll-behavior: none;
     /* iOS safe areas for notch/home indicator in standalone mode */
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
   }
-  html {
+  #root {
+    height: 100%;
     overflow: hidden;
-    /* Use dvh (dynamic viewport height) to account for mobile browser chrome */
-    height: 100dvh;
   }
   button {
     cursor: pointer;
+  }
+}
+
+@layer components {
+  /* Single content scroller under the pinned header — home list and editor list share this */
+  .app-scroll {
+    @apply flex-1 min-h-0 overflow-y-auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
 

@@ -1845,7 +1845,7 @@ export default function App() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="min-h-screen bg-bg text-text font-sans antialiased flex items-center justify-center"
+          className="h-full bg-bg text-text font-sans antialiased flex items-center justify-center"
         >
           <div className="flex flex-col items-center gap-4">
             <motion.div
@@ -1865,16 +1865,16 @@ export default function App() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2 }}
-          className="h-screen bg-bg text-text font-sans antialiased selection:bg-accent/30 overflow-hidden"
+          className="h-full bg-bg text-text font-sans antialiased selection:bg-accent/30 overflow-hidden"
         >
-          <div className="max-w-7xl mx-auto flex flex-col p-4 md:p-8 lg:p-12 h-full">
-        <header className="flex flex-col gap-4 mb-4 lg:mb-8">
+          <div className="max-w-7xl mx-auto flex flex-col p-4 md:px-8 md:pb-8 lg:px-12 lg:pb-12 h-full min-h-0">
+        <header className="flex flex-col gap-4 mb-4 shrink-0">
           {/* Top Row: App Title + Actions */}
           <div className="flex items-center justify-between">
             {/* App Title */}
             <div className="flex items-center gap-2 text-accent">
-              <Timer size={24} className="sm:w-7 sm:h-7" />
-              <span className="text-lg sm:text-xl font-black tracking-tight uppercase">
+              <Timer size={24} />
+              <span className="text-lg font-black tracking-tight uppercase">
                 TempoTread
               </span>
             </div>
@@ -1910,9 +1910,9 @@ export default function App() {
             onCreateWorkout={clearWorkout}
           />
         ) : (
-          <>
+          <div className="flex min-h-0 flex-1 flex-col">
             {/* Back Button for Editor */}
-            <div className="mb-4">
+            <div className="mb-4 shrink-0">
               <button
                 onClick={() => setView("home")}
                 className="flex items-center gap-2 text-text-muted hover:text-accent transition-colors text-sm"
@@ -1922,12 +1922,12 @@ export default function App() {
               </button>
             </div>
 
-            {/* Sticky Workout Title & Duration - Outside flex container */}
-        <div className="sticky top-0 z-30 bg-bg/95 backdrop-blur-md py-3 border-b border-text-subtle/10 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-12 lg:px-12">
+            {/* Workout Title & Duration - pinned above the list scroller */}
+        <div className="shrink-0 z-30 bg-bg/95 backdrop-blur-md py-3 border-b border-text-subtle/10 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-12 lg:px-12">
             <input
               value={workoutTitle}
               onChange={(e) => setWorkoutTitle(e.target.value)}
-              className="text-xl md:text-3xl lg:text-5xl font-black tracking-tighter text-accent bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full uppercase truncate"
+              className="text-xl md:text-2xl lg:text-3xl font-black tracking-tighter text-accent bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full uppercase truncate"
               aria-label="Workout title"
             />
             <div className="grid grid-cols-3 items-end mt-1">
@@ -1971,11 +1971,11 @@ export default function App() {
             </div>
           </div>
 
-        <main className="flex-1 flex flex-col gap-4">
+        <main className="flex min-h-0 flex-1 flex-col gap-4">
           {/* Timeline Section */}
-          <div className="flex flex-col h-[calc(100dvh-280px)]">
-            {/* Workout Timeline Guide - Sticky with Navigation */}
-            <div className="sticky top-0 z-20 bg-bg py-2 -mx-4 px-4 border-b border-text-subtle/10">
+          <div className="flex min-h-0 flex-1 flex-col">
+            {/* Workout Timeline Guide - pinned above the interval list */}
+            <div className="shrink-0 z-20 bg-bg py-2 -mx-4 px-4 border-b border-text-subtle/10">
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -2040,7 +2040,7 @@ export default function App() {
               axis="y"
               values={intervals}
               onReorder={setIntervals}
-              className="flex-1 overflow-y-auto pr-2 space-y-2 pb-44 pt-2"
+              className="app-scroll pr-2 space-y-2 pb-44 pt-2 custom-scrollbar"
             >
               {intervals.map((interval, index) => (
                 <SortableIntervalCard
@@ -2088,7 +2088,7 @@ export default function App() {
             )}
           </div>
         </main>
-          </>
+          </div>
         )}
 
         {/* Workout Overlay - Shared countdown + active states */}
