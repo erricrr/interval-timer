@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Play, Edit, Copy, Trash2, Plus, Timer } from "lucide-react";
+import { Play, Edit, Copy, Plus, Timer, MinusCircle } from "lucide-react";
 import { Button } from "../components/Button";
 import type { SavedWorkout } from "../lib/firebaseSync";
 
@@ -160,7 +160,7 @@ export function WorkoutHome({
                   }
                   className="flex items-center gap-1.5 text-xs text-text-subtle/60 hover:text-red-400 transition-colors py-1.5 px-2.5 rounded-lg hover:bg-text-subtle/10"
                 >
-                  <Trash2 size={12} />
+                  <MinusCircle size={12} />
                   Delete
                 </button>
               </div>
@@ -177,7 +177,7 @@ export function WorkoutHome({
         className="fixed bottom-8 left-1/2 -translate-x-1/2 font-bold uppercase tracking-wider shadow-lg shadow-accent/20 z-40"
       >
         <Plus size={20} />
-        Create Workout
+        New Workout
       </Button>
     </div>
   );

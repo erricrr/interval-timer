@@ -25,7 +25,6 @@ import {
   SkipBack,
   GripVertical,
   MoreVertical,
-  Trash2,
   Volume2,
   VolumeX,
   ChevronLeft,
