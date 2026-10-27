@@ -44,6 +44,8 @@
     height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
   body {
     @apply font-sans antialiased h-full overflow-hidden;
@@ -64,6 +66,16 @@
   }
   button {
     cursor: pointer;
+  }
+
+  /*
+    iOS Safari auto-zooms focused fields under 16px and often never unzooms.
+    Keep a 16px floor on text fields; larger Tailwind sizes still win.
+  */
+  input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="image"]),
+  textarea,
+  select {
+    font-size: 1rem;
   }
 }
 
@@ -112,4 +124,12 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-subtle);
   background-clip: padding-box;
+}
+
+/* Unlayered so it beats Tailwind size utilities on touch devices. */
+@media (pointer: coarse) {
+  :is(input, textarea, select).text-xs,
+  :is(input, textarea, select).text-sm {
+    font-size: 1rem;
+  }
 }

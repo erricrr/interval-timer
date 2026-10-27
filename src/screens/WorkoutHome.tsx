@@ -54,18 +54,19 @@ export function WorkoutHome({
   }
 
   return (
-    <div className="app-scroll pb-32 pr-2 custom-scrollbar">
-      <div className="mb-6">
-        <h2 className="text-lg md:text-xl font-bold text-text-muted mb-2">
-          Your Workouts
-        </h2>
-        <p className="text-xs md:text-sm text-text-subtle">
-          Tap GO to start, or Edit to customize
-        </p>
-      </div>
+    <div className="flex flex-1 min-h-0 flex-col">
+      <div className="app-scroll pr-2 custom-scrollbar">
+        <div className="mb-6">
+          <h2 className="text-lg md:text-xl font-bold text-text-muted mb-2">
+            Your Workouts
+          </h2>
+          <p className="text-xs md:text-sm text-text-subtle">
+            Tap GO to start, or Edit to customize
+          </p>
+        </div>
 
-      <div className="space-y-3 pr-2">
-        {savedWorkouts.map((workout) => {
+        <div className="space-y-3 pr-2 pb-4">
+          {savedWorkouts.map((workout) => {
           const totalSeconds = workout.intervals.reduce(
             (acc, i) => acc + i.duration,
             0
@@ -166,19 +167,21 @@ export function WorkoutHome({
               </div>
             </motion.div>
           );
-        })}
+          })}
+        </div>
       </div>
 
-      {/* Floating Create Button */}
-      <Button
-        variant="solid"
-        size="lg"
-        onClick={onCreateWorkout}
-        className="fixed bottom-8 left-1/2 -translate-x-1/2 font-bold uppercase tracking-wider shadow-lg shadow-accent/20 z-40"
-      >
-        <Plus size={20} />
-        New Workout
-      </Button>
+      <div className="shrink-0 flex justify-center pt-4">
+        <Button
+          variant="solid"
+          size="lg"
+          onClick={onCreateWorkout}
+          className="font-bold uppercase tracking-wider shadow-lg shadow-accent/20"
+        >
+          <Plus size={20} />
+          New Workout
+        </Button>
+      </div>
     </div>
   );
 }
