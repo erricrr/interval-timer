@@ -21,7 +21,6 @@ import {
   FileText,
   Copy,
   Save,
-  FolderOpen,
   SkipForward,
   SkipBack,
   GripVertical,
@@ -50,20 +49,17 @@ import { Button, CloseButton, type ButtonProps } from "./components/Button";
 import { Overlay } from "./components/Overlay";
 import { NowPlayingPanel, type SongInfo } from "./components/NowPlayingPanel";
 import { useAuth } from "./contexts/AuthContext";
+import { WorkoutHome } from "./screens/WorkoutHome";
 import {
   saveSettings,
   loadSettings,
-  saveWorkout,
-  saveNewWorkout,
   loadWorkout,
   uploadAudioTrack,
   deleteAudioTrack,
   loadAudioLibrary,
-  uploadCustomAlarm,
   saveWorkoutToLibrary,
   loadSavedWorkouts,
   deleteSavedWorkoutFromLibrary,
-  saveOrReplaceWorkout,
   normalizeSavedWorkout,
   normalizeWorkoutData,
 } from "./lib/firebaseSync";
@@ -945,6 +941,7 @@ const PlaylistDrawer = ({
 };
 
 export default function App() {
+  const [view, setView] = useState<"home" | "editor">("home");
   const [workoutTitle, setWorkoutTitle] = useState("New Session");
   const [currentWorkoutId, setCurrentWorkoutId] = useState<string | null>(null);
   const [intervals, setIntervals] = useState<Interval[]>(() => createStarterIntervals());
@@ -1104,6 +1101,11 @@ export default function App() {
       audioEngine.clearLibrary();
       setAudioLibrary([]);
       setAudioStoragePaths({});
+      // Reset workout state on logout to prevent previous user data showing
+      setWorkoutTitle("New Session");
+      setIntervals(createStarterIntervals());
+      setCurrentWorkoutId(null);
+      setSavedWorkouts([]);
       return;
     }
 
@@ -1135,27 +1137,8 @@ export default function App() {
 
         audioEntries = loadedAudio;
 
-        let shouldLoadCurrentWorkout = false;
-        if (workoutData && workouts.length > 0) {
-          const currentWorkoutExists = workouts.some(
-            (w) =>
-              w.title.trim().toLowerCase() ===
-              workoutData.workoutTitle?.trim().toLowerCase(),
-          );
-          shouldLoadCurrentWorkout = currentWorkoutExists;
-        } else if (workoutData) {
-          shouldLoadCurrentWorkout = true;
-        }
-
-        if (shouldLoadCurrentWorkout && workoutData) {
-          const normalizedCurrentWorkout = normalizeWorkoutData(workoutData);
-          setWorkoutTitle(normalizedCurrentWorkout.workoutTitle);
-          setIntervals(normalizedCurrentWorkout.intervals);
-        } else if (workouts.length > 0) {
-          const firstWorkout = normalizeSavedWorkout(workouts[0]);
-          setWorkoutTitle(firstWorkout.title);
-          setIntervals(firstWorkout.intervals);
-        }
+        // Don't auto-load any workout - let the home screen handle workout selection
+        // Just load the library for display
 
         if (settings) {
           skipSettingsAutoSave.current = true;
@@ -1167,7 +1150,16 @@ export default function App() {
           audioEngine.setMusicMuted(settings.musicMuted ?? false);
         }
 
-        setSavedWorkouts(workouts.map(normalizeSavedWorkout));
+        // Sort workouts by updatedAt (newest first), then by title
+        const sortedWorkouts = workouts.map(normalizeSavedWorkout).sort((a, b) => {
+          if (a.updatedAt && b.updatedAt) {
+            return b.updatedAt - a.updatedAt;
+          }
+          if (a.updatedAt) return -1;
+          if (b.updatedAt) return 1;
+          return a.title.localeCompare(b.title);
+        });
+        setSavedWorkouts(sortedWorkouts);
         hasLoadedInitialData.current = true;
       } catch (err) {
         console.error("Firestore failed (loadUserData):", err);
@@ -1237,7 +1229,16 @@ export default function App() {
         const normalized = Array.isArray(parsed)
           ? parsed.map((workout) => normalizeSavedWorkout(workout))
           : [];
-        setSavedWorkouts(normalized);
+        // Sort by updatedAt (newest first), then by title
+        const sorted = normalized.sort((a, b) => {
+          if (a.updatedAt && b.updatedAt) {
+            return b.updatedAt - a.updatedAt;
+          }
+          if (a.updatedAt) return -1;
+          if (b.updatedAt) return 1;
+          return a.title.localeCompare(b.title);
+        });
+        setSavedWorkouts(sorted);
       } catch (e) {
         console.error("Failed to load saved workouts from localStorage");
       }
@@ -1271,31 +1272,15 @@ export default function App() {
     }
   }, [user, isAuthLoading]);
 
-  useEffect(() => {
-    if (user !== null || isAuthLoading) return;
-    if (savedWorkouts.length === 0) return;
-    if (hasAutoLoadedWorkout.current) return;
-
-    const isDefaultIntervals =
-      intervals.length === 3 &&
-      intervals[0].name === "Warm Up" &&
-      intervals[1].name === "Run" &&
-      intervals[2].name === "Recovery";
-
-    if (isDefaultIntervals) {
-      hasAutoLoadedWorkout.current = true;
-      const firstWorkout = normalizeSavedWorkout(savedWorkouts[0]);
-      setWorkoutTitle(firstWorkout.title);
-      setIntervals(firstWorkout.intervals);
-    }
-  }, [savedWorkouts, user, isAuthLoading, intervals]);
+  // Removed auto-load effect - home screen will handle workout selection
 
   useEffect(() => {
-    // Only persist to localStorage when user is not logged in
-    if (!user) {
+    // Only persist to localStorage when user is not logged in AND auth has finished loading
+    // This prevents wiping localStorage before guest data is loaded
+    if (!user && !isAuthLoading) {
       localStorage.setItem("tempotread_workouts", JSON.stringify(savedWorkouts));
     }
-  }, [savedWorkouts, user]);
+  }, [savedWorkouts, user, isAuthLoading]);
 
   // Save alarm settings when they change
   useEffect(() => {
@@ -1342,36 +1327,29 @@ export default function App() {
     return () => clearTimeout(timeoutId);
   }, [user, alarmVolume, alarmPreset, customAlarmName, halfwaySoundEnabled, musicMuted]);
 
-  const saveCurrentWorkout = async () => {
-    const newWorkout = {
-      id: Math.random().toString(36).substr(2, 9),
-      title: workoutTitle,
-      intervals: [...intervals],
-    };
+  // Removed saveCurrentWorkout - no longer needed with new save flow
 
-    // If logged in, save to Firestore first
-    if (user) {
-      try {
-        await saveWorkoutToLibrary(user.uid, newWorkout);
-      } catch (err) {
-        console.error("Failed to save workout to Firestore:", err);
-        // Still update local state even if Firestore fails
-      }
-    }
-
-    setSavedWorkouts((prev) => [newWorkout, ...prev]);
-  };
-
-  const loadSavedWorkout = (workout: {
-    id: string;
-    title: string;
-    intervals: Interval[];
-  }) => {
+  const loadSavedWorkout = (
+    workout: {
+      id: string;
+      title: string;
+      intervals: Interval[];
+    },
+    mode: "edit" | "start" = "edit"
+  ) => {
     const normalizedWorkout = normalizeSavedWorkout(workout);
     setWorkoutTitle(normalizedWorkout.title);
     setIntervals(normalizedWorkout.intervals);
     setCurrentWorkoutId(normalizedWorkout.id);
     setShowSettings(false);
+    
+    if (mode === "start") {
+      // Start the workout immediately
+      startWorkout();
+    } else {
+      // Go to editor
+      setView("editor");
+    }
   };
 
   const deleteSavedWorkout = async (id: string) => {
@@ -1400,6 +1378,7 @@ export default function App() {
         ...interval,
         id: crypto.randomUUID(),
       })),
+      updatedAt: Date.now(),
     };
 
     // If logged in, save to Firestore first
@@ -1412,15 +1391,27 @@ export default function App() {
       }
     }
 
-    setSavedWorkouts((prev) => [duplicatedWorkout, ...prev]);
+    setSavedWorkouts((prev) => {
+      const updated = [duplicatedWorkout, ...prev];
+      // Re-sort by updatedAt
+      return updated.sort((a, b) => {
+        if (a.updatedAt && b.updatedAt) {
+          return b.updatedAt - a.updatedAt;
+        }
+        if (a.updatedAt) return -1;
+        if (b.updatedAt) return 1;
+        return a.title.localeCompare(b.title);
+      });
+    });
   };
 
   const clearWorkout = () => {
     setWorkoutTitle("New Session");
-    setIntervals([]);
+    setIntervals(createStarterIntervals());
     setCurrentWorkoutId(null);
     resetWorkout();
     setShowNewWorkoutConfirm(false);
+    setView("editor");
   };
 
   const duplicateInterval = (index: number) => {
@@ -1502,6 +1493,8 @@ export default function App() {
     setTotalTimeElapsed(0);
     setCountdownValue(0);
     audioEngine.stopAll();
+    // Return to home after finishing/closing workout
+    setView("home");
   };
 
   const handleSaveWorkout = async () => {
@@ -1512,9 +1505,10 @@ export default function App() {
 
     try {
       const titleToSave = workoutTitle?.trim() || "New Session";
-      let workoutId = currentWorkoutId;
+      const now = Date.now();
 
       if (currentWorkoutId) {
+        // Update existing workout
         const workoutToUpdate = {
           id: currentWorkoutId,
           title: titleToSave,
@@ -1527,30 +1521,62 @@ export default function App() {
             ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
             ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
           })),
+          updatedAt: now,
         };
         await saveWorkoutToLibrary(user.uid, workoutToUpdate);
 
         setSavedWorkouts(prev => {
           const filtered = prev.filter(w => w.id !== currentWorkoutId);
-          return [workoutToUpdate, ...filtered];
+          const updated = [workoutToUpdate, ...filtered];
+          // Re-sort by updatedAt
+          return updated.sort((a, b) => {
+            if (a.updatedAt && b.updatedAt) {
+              return b.updatedAt - a.updatedAt;
+            }
+            if (a.updatedAt) return -1;
+            if (b.updatedAt) return 1;
+            return a.title.localeCompare(b.title);
+          });
         });
       } else {
-        const result = await saveOrReplaceWorkout(user.uid, {
-          workoutTitle: titleToSave,
-          intervals,
-        }, savedWorkouts);
-        workoutId = result.id;
-
-        const newWorkout = { id: result.id, title: titleToSave, intervals };
+        // Create new workout
+        const newId = crypto.randomUUID();
+        const newWorkout = {
+          id: newId,
+          title: titleToSave,
+          intervals: intervals.map(interval => ({
+            id: interval.id,
+            name: interval.name || "",
+            duration: interval.duration || 0,
+            color: interval.color || "#F27D26",
+            ...(interval.notes !== undefined && { notes: interval.notes }),
+            ...(interval.playlist !== undefined ? { playlist: interval.playlist } : { playlist: [] }),
+            ...(interval.halfwayAlert !== undefined && { halfwayAlert: interval.halfwayAlert }),
+          })),
+          updatedAt: now,
+        };
+        await saveWorkoutToLibrary(user.uid, newWorkout);
+        
         setSavedWorkouts(prev => {
-          const filtered = prev.filter(w => w.id !== result.id);
-          return [newWorkout, ...filtered];
+          const updated = [newWorkout, ...prev];
+          // Re-sort by updatedAt
+          return updated.sort((a, b) => {
+            if (a.updatedAt && b.updatedAt) {
+              return b.updatedAt - a.updatedAt;
+            }
+            if (a.updatedAt) return -1;
+            if (b.updatedAt) return 1;
+            return a.title.localeCompare(b.title);
+          });
         });
-        setCurrentWorkoutId(result.id);
+        setCurrentWorkoutId(newId);
       }
 
       setTimelineSaved(true);
       setTimeout(() => setTimelineSaved(false), 2000);
+      
+      // Return to home after saving
+      setTimeout(() => setView("home"), 1000);
     } catch (err) {
       console.error("Timeline SAVE failed:", err);
       alert("Save failed: " + (err instanceof Error ? err.message : "Unknown error"));
@@ -1565,8 +1591,12 @@ export default function App() {
       setCurrentIndex(prevIndex);
       setTimeLeft(prev.duration);
       audioEngine.stopAll();
-      audioEngine.playStart();
-      startPlaylistForGroup(colorGroups, prev.color);
+      
+      // Only start audio if currently running, not paused
+      if (state === "running") {
+        audioEngine.playStart();
+        startPlaylistForGroup(colorGroups, prev.color);
+      }
     }
   };
 
@@ -1578,8 +1608,12 @@ export default function App() {
       setCurrentIndex(nextIndex);
       setTimeLeft(next.duration);
       audioEngine.stopAll();
-      audioEngine.playStart();
-      startPlaylistForGroup(colorGroups, next.color);
+      
+      // Only start audio if currently running, not paused
+      if (state === "running") {
+        audioEngine.playStart();
+        startPlaylistForGroup(colorGroups, next.color);
+      }
     } else {
       audioEngine.playWorkoutComplete();
       audioEngine.stopAll();
@@ -1831,9 +1865,9 @@ export default function App() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2 }}
-          className="min-h-screen bg-bg text-text font-sans antialiased selection:bg-accent/30 overflow-x-hidden"
+          className="h-screen bg-bg text-text font-sans antialiased selection:bg-accent/30 overflow-hidden"
         >
-          <div className="max-w-7xl mx-auto flex flex-col p-4 md:p-8 lg:p-12 min-h-screen">
+          <div className="max-w-7xl mx-auto flex flex-col p-4 md:p-8 lg:p-12 h-full">
         <header className="flex flex-col gap-4 mb-4 lg:mb-8">
           {/* Top Row: App Title + Actions */}
           <div className="flex items-center justify-between">
@@ -1858,7 +1892,7 @@ export default function App() {
               <button
                 onClick={() => setShowSettings(true)}
                 className="p-2.5 sm:p-3 glass rounded-full text-text-muted hover:text-text hover:bg-text-subtle/10 transition-all hover:scale-110 active:scale-95"
-                title="Settings & Library"
+                title="Settings"
               >
                 <Settings size={18} className="sm:w-5 sm:h-5" />
               </button>
@@ -1866,7 +1900,29 @@ export default function App() {
           </div>
         </header>
 
-        {/* Sticky Workout Title & Duration - Outside flex container */}
+        {view === "home" ? (
+          <WorkoutHome
+            savedWorkouts={savedWorkouts}
+            onStartWorkout={(workout) => loadSavedWorkout(workout, "start")}
+            onEditWorkout={(workout) => loadSavedWorkout(workout, "edit")}
+            onDuplicateWorkout={duplicateSavedWorkout}
+            onDeleteWorkout={(workout) => setWorkoutToDelete(workout)}
+            onCreateWorkout={clearWorkout}
+          />
+        ) : (
+          <>
+            {/* Back Button for Editor */}
+            <div className="mb-4">
+              <button
+                onClick={() => setView("home")}
+                className="flex items-center gap-2 text-text-muted hover:text-accent transition-colors text-sm"
+              >
+                <ChevronLeft size={16} />
+                Back to Workouts
+              </button>
+            </div>
+
+            {/* Sticky Workout Title & Duration - Outside flex container */}
         <div className="sticky top-0 z-30 bg-bg/95 backdrop-blur-md py-3 border-b border-text-subtle/10 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-12 lg:px-12">
             <input
               value={workoutTitle}
@@ -2032,6 +2088,8 @@ export default function App() {
             )}
           </div>
         </main>
+          </>
+        )}
 
         {/* Workout Overlay - Shared countdown + active states */}
         {isWorkoutOverlayVisible && (
@@ -2099,6 +2157,11 @@ export default function App() {
                           isMobileLandscape && "gap-1",
                         )}
                       >
+                        <Bell 
+                          size={isMobileLandscape ? 10 : 11} 
+                          className="text-text-subtle/70" 
+                          aria-hidden="true" 
+                        />
                         <span
                           className={cn(
                             "text-[9px] font-mono uppercase tracking-wider text-text-subtle/70",
@@ -2429,74 +2492,9 @@ export default function App() {
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
           variant="fullscreen"
-          title={<h2 className="text-xl sm:text-2xl font-bold tracking-tight">System Settings</h2>}
+          title={<h2 className="text-xl sm:text-2xl font-bold tracking-tight">Settings</h2>}
           contentClassName="space-y-4 sm:space-y-6"
         >
-          <section>
-            <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Save size={14} /> Save Current Timeline
-            </h3>
-            <button
-              onClick={handleSaveWorkout}
-              className="w-full py-4 bg-accent text-bg font-black rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 shadow-lg shadow-accent/20 mx-1"
-            >
-              <Save size={20} />
-              <span className="font-bold">Save "{workoutTitle}"</span>
-            </button>
-          </section>
-
-          {savedWorkouts.length > 0 && (
-            <section className="mt-6">
-              <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <FolderOpen size={14} /> Saved Timelines
-              </h3>
-              <div className="space-y-2">
-                {savedWorkouts.map((workout) => (
-                  <div
-                    key={workout.id}
-                    className="glass p-4 rounded-2xl flex items-center justify-between group hover:bg-text-subtle/10"
-                  >
-                    <div
-                      className="flex-1 cursor-pointer"
-                      onClick={() => loadSavedWorkout(workout)}
-                    >
-                      <p className="font-bold text-lg">
-                        {workout.title}
-                      </p>
-                      <p className="text-[10px] font-mono text-text-subtle/40 uppercase tracking-wider">
-                        {workout.intervals.length} Intervals •{" "}
-                        {(() => {
-                          const totalSeconds = workout.intervals.reduce(
-                            (acc, i) => acc + i.duration,
-                            0,
-                          );
-                          const mins = Math.floor(totalSeconds / 60);
-                          const secs = totalSeconds % 60;
-                          return `${mins}m ${secs.toString().padStart(2, "0")}s`;
-                        })()}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => duplicateSavedWorkout(workout.id)}
-                        className="p-3 text-text-subtle/30 hover:text-accent transition-colors"
-                        title="Duplicate Workout"
-                      >
-                        <Copy size={20} />
-                      </button>
-                      <button
-                        onClick={() => setWorkoutToDelete({ id: workout.id, title: workout.title })}
-                        className="p-3 text-text-subtle/30 hover:text-red-400 transition-colors"
-                        title="Delete Saved Workout"
-                      >
-                        <MinusCircle size={20} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
 
           <section className="mt-6">
             <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -2645,9 +2643,62 @@ export default function App() {
                 <Play size={16} fill="currentColor" />
                 Test Alarm Sound
               </button>
+            </div>
+          </section>
 
+          {/* Halfway Alert Section */}
+          <section className="mt-6">
+            <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Bell size={14} /> Halfway Alert
+            </h3>
+            <div className="glass p-4 rounded-2xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm text-text-muted/90">
+                    50% Interval Alert
+                  </label>
+                  <p className="text-[10px] text-text-subtle/50">
+                    Play sound at halfway point of each interval
+                  </p>
+                </div>
+                <button
+                  onClick={() => setHalfwaySoundEnabled((prev) => !prev)}
+                  className={cn(
+                    "w-11 h-6 rounded-full relative flex items-center",
+                    halfwaySoundEnabled ? "bg-accent" : "bg-text-subtle/40",
+                  )}
+                  aria-label={
+                    halfwaySoundEnabled
+                      ? "Disable halfway alert"
+                      : "Enable halfway alert"
+                  }
+                  aria-pressed={halfwaySoundEnabled}
+                >
+                  <span
+                    className={cn(
+                      "w-4 h-4 rounded-full bg-text",
+                      halfwaySoundEnabled
+                        ? "translate-x-6"
+                        : "translate-x-1",
+                    )}
+                  />
+                </button>
+              </div>
+              <div className="mt-3 pt-3 border-t border-text-subtle/10">
+                <p className="text-[10px] text-text-subtle/60 leading-relaxed">
+                  This is the default setting for all intervals. You can also toggle it per-interval using the 50% switch in each interval card, or during a running workout.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Music size={14} /> Music Control
+            </h3>
+            <div className="glass p-4 rounded-2xl">
               {/* Mute All Tracks Toggle */}
-              <div className="flex items-center justify-between py-3 border-t border-text-subtle/10">
+              <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm text-text-muted/90">
                     Mute All Tracks
@@ -2681,7 +2732,7 @@ export default function App() {
               </div>
 
               {/* Auto-save Status Indicator */}
-              <div className="pt-4 border-t border-text-subtle/10">
+              <div className="pt-3 border-t border-text-subtle/10">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-text-subtle/60">
                     Settings are automatically saved

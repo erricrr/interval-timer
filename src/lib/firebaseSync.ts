@@ -14,6 +14,7 @@ export interface SavedWorkout {
   id: string;
   title: string;
   intervals: Interval[];
+  updatedAt?: number; // timestamp for sorting
 }
 
 export interface Settings {
@@ -67,7 +68,11 @@ export async function deleteCustomAlarm(storagePath: string) {
 // ─── Saved Workouts Library ───────────────────────────────────────────────────
 
 export async function saveWorkoutToLibrary(uid: string, workout: SavedWorkout): Promise<void> {
-  await setDoc(doc(db, "users", uid, "savedWorkouts", workout.id), normalizeSavedWorkout(workout));
+  const normalized = normalizeSavedWorkout(workout);
+  await setDoc(doc(db, "users", uid, "savedWorkouts", workout.id), {
+    ...normalized,
+    updatedAt: Date.now(),
+  });
 }
 
 export async function loadSavedWorkouts(uid: string): Promise<SavedWorkout[]> {
@@ -76,7 +81,7 @@ export async function loadSavedWorkouts(uid: string): Promise<SavedWorkout[]> {
     limit(MAX_SAVED_WORKOUTS),
   );
   const snap = await getDocs(workoutsQuery);
-  return snap.docs.map((d) => normalizeSavedWorkout(d.data()));
+  return snap.docs.map((d) => normalizeSavedWorkout({ ...d.data(), id: d.id }));
 }
 
 export async function deleteSavedWorkoutFromLibrary(uid: string, workoutId: string): Promise<void> {
@@ -163,7 +168,7 @@ export function normalizeSavedWorkout(
     intervals: workout?.intervals,
   });
 
-  return {
+  const normalized: SavedWorkout = {
     id:
       typeof workout?.id === "string" && workout.id.trim().length > 0
         ? workout.id
@@ -171,6 +176,13 @@ export function normalizeSavedWorkout(
     title: normalizedData.workoutTitle,
     intervals: normalizedData.intervals,
   };
+
+  // Preserve updatedAt if present
+  if (typeof workout?.updatedAt === "number") {
+    normalized.updatedAt = workout.updatedAt;
+  }
+
+  return normalized;
 }
 
 // Helper to clean intervals (DRY)
@@ -241,20 +253,22 @@ export async function saveOrReplaceWorkout(
 
   if (existingWorkout) {
     // Replace existing workout in library - keep same ID, update intervals
-    const libraryWorkout: SavedWorkout = {
+    const libraryWorkout = {
       id: existingWorkout.id,
       title: data.workoutTitle?.trim() || "New Session",
       intervals: cleanedIntervals,
+      updatedAt: Date.now(),
     };
     await setDoc(doc(db, "users", uid, "savedWorkouts", existingWorkout.id), libraryWorkout);
     return { id: existingWorkout.id, isNew: false };
   } else {
     // Create new workout in library
     const newId = crypto.randomUUID();
-    const libraryWorkout: SavedWorkout = {
+    const libraryWorkout = {
       id: newId,
       title: data.workoutTitle?.trim() || "New Session",
       intervals: cleanedIntervals,
+      updatedAt: Date.now(),
     };
     await setDoc(doc(db, "users", uid, "savedWorkouts", newId), libraryWorkout);
     return { id: newId, isNew: true };

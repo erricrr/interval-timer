@@ -87,19 +87,19 @@ export function getValidTracks(
 }
 
 export const COLORS = [
-  '#8b7aa8', // Muted Purple
-  '#c9b8a0', // Warm Beige
-  '#6a8a9a', // Steel Blue
-  '#9a7a7a', // Dusty Rose
-  '#7a9a8a', // Sage Green
-  '#8a9a9a', // Blue Grey
-  '#a0a080', // Olive
-  '#8a7a8a', // Mauve
-  '#6a7a9a', // Slate Blue
-  '#9a8a7a', // Brown
-  '#7a8a6a', // Moss Green
-  '#8a6a7a', // Berry
-  '#6a9a9a', // Teal
-  '#9a8a8a', // Dusty Pink
-  '#7a6a8a', // Plum
+  '#f27d26', // Orange (Primary)
+  '#ff6b35', // Coral Orange
+  '#ffa500', // Bright Orange
+  '#ff4757', // Red
+  '#ff6348', // Tomato Red
+  '#ee5a6f', // Pink Red
+  '#feca57', // Yellow
+  '#ffd93d', // Golden Yellow
+  '#6c5ce7', // Purple
+  '#a29bfe', // Light Purple
+  '#00b894', // Emerald Green
+  '#26de81', // Mint Green
+  '#45aaf2', // Sky Blue
+  '#5f27cd', // Deep Purple
+  '#fd79a8', // Pink
 ];
