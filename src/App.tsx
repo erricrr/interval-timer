@@ -940,6 +940,22 @@ const PlaylistDrawer = ({
   );
 };
 
+const EDITOR_HEADER_ACTION_CLASS =
+  "h-7 px-3 text-[10px] font-bold uppercase tracking-wider glass";
+
+const EditorHeaderAction = ({
+  className,
+  variant = "secondary",
+  ...props
+}: ButtonProps) => (
+  <Button
+    {...props}
+    variant={variant}
+    size="xs"
+    className={cn(EDITOR_HEADER_ACTION_CLASS, className)}
+  />
+);
+
 export default function App() {
   const [view, setView] = useState<"home" | "editor">("home");
   const [workoutTitle, setWorkoutTitle] = useState("New Session");
@@ -964,7 +980,6 @@ export default function App() {
     { id: string; title: string; intervals: Interval[] }[]
   >([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [showNewWorkoutConfirm, setShowNewWorkoutConfirm] = useState(false);
   const [workoutToDelete, setWorkoutToDelete] = useState<{ id: string; title: string } | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
@@ -1342,7 +1357,7 @@ export default function App() {
     setIntervals(normalizedWorkout.intervals);
     setCurrentWorkoutId(normalizedWorkout.id);
     setShowSettings(false);
-    
+
     if (mode === "start") {
       // Start the workout immediately
       startWorkout();
@@ -1410,7 +1425,6 @@ export default function App() {
     setIntervals(createStarterIntervals());
     setCurrentWorkoutId(null);
     resetWorkout();
-    setShowNewWorkoutConfirm(false);
     setView("editor");
   };
 
@@ -1556,7 +1570,7 @@ export default function App() {
           updatedAt: now,
         };
         await saveWorkoutToLibrary(user.uid, newWorkout);
-        
+
         setSavedWorkouts(prev => {
           const updated = [newWorkout, ...prev];
           // Re-sort by updatedAt
@@ -1574,7 +1588,7 @@ export default function App() {
 
       setTimelineSaved(true);
       setTimeout(() => setTimelineSaved(false), 2000);
-      
+
       // Return to home after saving
       setTimeout(() => setView("home"), 1000);
     } catch (err) {
@@ -1591,7 +1605,7 @@ export default function App() {
       setCurrentIndex(prevIndex);
       setTimeLeft(prev.duration);
       audioEngine.stopAll();
-      
+
       // Only start audio if currently running, not paused
       if (state === "running") {
         audioEngine.playStart();
@@ -1608,7 +1622,7 @@ export default function App() {
       setCurrentIndex(nextIndex);
       setTimeLeft(next.duration);
       audioEngine.stopAll();
-      
+
       // Only start audio if currently running, not paused
       if (state === "running") {
         audioEngine.playStart();
@@ -1931,7 +1945,7 @@ export default function App() {
               aria-label="Workout title"
             />
             <div className="grid grid-cols-3 items-end mt-1">
-              <div className="text-left">
+              <div className="min-w-0 text-left">
                 <p className="text-[10px] text-text-subtle font-mono uppercase tracking-widest">
                   {state === "running" ||
                   state === "paused" ||
@@ -1949,24 +1963,20 @@ export default function App() {
               </div>
 
               <div className="flex justify-center">
-                <button
-                  onClick={handleSaveWorkout}
-                  className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-accent hover:bg-accent/10 transition-all border border-accent/20 text-[10px] font-bold uppercase tracking-wider"
-                >
-                  <Save size={12} />
-                  {timelineSaved ? "Saved!" : "Save"}
-                </button>
+                <EditorHeaderAction onClick={addInterval}>
+                  <Plus size={12} />
+                  Interval
+                </EditorHeaderAction>
               </div>
 
               <div className="flex justify-end">
-                <button
-                  onClick={() => setShowNewWorkoutConfirm(true)}
-                  className="py-1.5 px-3 glass rounded-lg flex items-center gap-1.5 text-text-muted hover:text-text hover:bg-text-subtle/10 transition-all border border-text-subtle/10 text-[10px] font-bold uppercase tracking-wider"
-                  title="Start new workout"
+                <EditorHeaderAction
+                  variant="accent"
+                  onClick={handleSaveWorkout}
                 >
-                  <Plus size={12} />
-                  New Session
-                </button>
+                  <Save size={12} />
+                  {timelineSaved ? "Saved!" : "Save"}
+                </EditorHeaderAction>
               </div>
             </div>
           </div>
@@ -2040,7 +2050,7 @@ export default function App() {
               axis="y"
               values={intervals}
               onReorder={setIntervals}
-              className="app-scroll pr-2 space-y-2 pb-44 pt-2 custom-scrollbar"
+              className="app-scroll pr-2 space-y-2 pb-28 pt-2 custom-scrollbar"
             >
               {intervals.map((interval, index) => (
                 <SortableIntervalCard
@@ -2058,20 +2068,6 @@ export default function App() {
               ))}
             </Reorder.Group>
           </div>
-
-          {/* Add Interval Button - Fixed above Let's Go */}
-          <button
-            onClick={addInterval}
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 py-1.5 px-10 bg-bg rounded-full flex items-center justify-center gap-2 border border-text-subtle/40 cursor-pointer"
-          >
-            <Plus
-              size={14}
-              className="text-text-subtle"
-            />
-            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-text-subtle">
-              Interval
-            </span>
-          </button>
 
           {/* Workout Controls Section - Only Let's Go button inside main */}
           <div className="flex-shrink-0">
@@ -2157,10 +2153,10 @@ export default function App() {
                           isMobileLandscape && "gap-1",
                         )}
                       >
-                        <Bell 
-                          size={isMobileLandscape ? 10 : 11} 
-                          className="text-text-subtle/70" 
-                          aria-hidden="true" 
+                        <Bell
+                          size={isMobileLandscape ? 10 : 11}
+                          className="text-text-subtle/70"
+                          aria-hidden="true"
                         />
                         <span
                           className={cn(
@@ -2815,7 +2811,7 @@ export default function App() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-text-subtle/50">Build Date</span>
-                <span className="font-mono">MAR 2026</span>
+                <span className="font-mono">OCT 2026</span>
               </div>
             </div>
           </section>
@@ -2903,17 +2899,6 @@ export default function App() {
           confirmVariant="danger"
           showOverlay={false}
           className="z-[200]"
-        />
-
-        {/* New Workout Confirmation Dialog */}
-        <ConfirmModal
-          isOpen={showNewWorkoutConfirm}
-          onClose={() => setShowNewWorkoutConfirm(false)}
-          title="Start New Workout?"
-          message="This will clear all current intervals and reset the workout title. This action cannot be undone."
-          confirmLabel="Clear & Start New"
-          onConfirm={clearWorkout}
-          confirmVariant="danger"
         />
 
         {/* Login Prompt Dialog */}
