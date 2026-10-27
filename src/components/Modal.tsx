@@ -261,6 +261,7 @@ interface ConfirmModalProps extends Omit<ModalProps, "children" | "variant"> {
   confirmLabel?: string;
   cancelLabel?: string;
   onConfirm: () => void;
+  onCancel?: () => void;
   confirmVariant?: "danger" | "solid" | "accent";
 }
 
@@ -269,6 +270,7 @@ export function ConfirmModal({
   confirmLabel = "Delete",
   cancelLabel = "Cancel",
   onConfirm,
+  onCancel,
   confirmVariant = "danger",
   ...modalProps
 }: ConfirmModalProps) {
@@ -286,7 +288,10 @@ export function ConfirmModal({
       <div className="flex gap-3">
         <button
           className="py-1.5 px-4 rounded-xl bg-text-subtle/10 text-text hover:bg-text-subtle/20 border border-text-subtle/10 transition-all duration-200 active:scale-95 text-sm whitespace-nowrap"
-          onClick={modalProps.onClose}
+          onClick={() => {
+            onCancel?.();
+            modalProps.onClose();
+          }}
         >
           {cancelLabel}
         </button>

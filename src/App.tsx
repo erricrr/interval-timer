@@ -74,6 +74,23 @@ const createStarterIntervals = (): Interval[] => [
   { id: crypto.randomUUID(), name: "Recovery", duration: 10, notes: "", color: COLORS[2] },
 ];
 
+const getWorkoutSnapshot = (title: string, intervals: Interval[]) =>
+  JSON.stringify({
+    title: title.trim() || "New Session",
+    intervals: intervals.map((interval) => ({
+      id: interval.id,
+      name: interval.name || "",
+      duration: interval.duration || 0,
+      color: interval.color || "#F27D26",
+      notes: interval.notes ?? "",
+      halfwayAlert: interval.halfwayAlert ?? null,
+      playlist: (interval.playlist ?? []).map((track) => ({
+        instanceId: track.instanceId,
+        audioId: track.audioId,
+      })),
+    })),
+  });
+
 interface SortableIntervalCardProps {
   key?: React.Key;
   interval: Interval;
@@ -981,6 +998,7 @@ export default function App() {
   >([]);
   const [isUploading, setIsUploading] = useState(false);
   const [workoutToDelete, setWorkoutToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [showUnsavedChanges, setShowUnsavedChanges] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   const { user, isAuthLoading } = useAuth();
@@ -990,6 +1008,7 @@ export default function App() {
   const hasLoadedInitialData = useRef(false);
   const hasAutoLoadedWorkout = useRef(false);
   const skipSettingsAutoSave = useRef(false);
+  const lastSavedSnapshotRef = useRef<string | null>(null);
 
   // Alarm settings state
   const [alarmVolume, setAlarmVolume] = useState(0.5);
@@ -1121,6 +1140,8 @@ export default function App() {
       setIntervals(createStarterIntervals());
       setCurrentWorkoutId(null);
       setSavedWorkouts([]);
+      lastSavedSnapshotRef.current = null;
+      setShowUnsavedChanges(false);
       return;
     }
 
@@ -1356,6 +1377,11 @@ export default function App() {
     setWorkoutTitle(normalizedWorkout.title);
     setIntervals(normalizedWorkout.intervals);
     setCurrentWorkoutId(normalizedWorkout.id);
+    lastSavedSnapshotRef.current = getWorkoutSnapshot(
+      normalizedWorkout.title,
+      normalizedWorkout.intervals,
+    );
+    setShowUnsavedChanges(false);
     setShowSettings(false);
 
     if (mode === "start") {
@@ -1424,8 +1450,27 @@ export default function App() {
     setWorkoutTitle("New Session");
     setIntervals(createStarterIntervals());
     setCurrentWorkoutId(null);
+    lastSavedSnapshotRef.current = null;
+    setShowUnsavedChanges(false);
     resetWorkout();
     setView("editor");
+  };
+
+  const hasUnsavedChanges = () =>
+    lastSavedSnapshotRef.current === null ||
+    lastSavedSnapshotRef.current !== getWorkoutSnapshot(workoutTitle, intervals);
+
+  const handleBackToWorkouts = () => {
+    if (hasUnsavedChanges()) {
+      setShowUnsavedChanges(true);
+      return;
+    }
+    setView("home");
+  };
+
+  const leaveWithoutSaving = () => {
+    setShowUnsavedChanges(false);
+    setView("home");
   };
 
   const duplicateInterval = (index: number) => {
@@ -1586,6 +1631,8 @@ export default function App() {
         setCurrentWorkoutId(newId);
       }
 
+      lastSavedSnapshotRef.current = getWorkoutSnapshot(titleToSave, intervals);
+      setShowUnsavedChanges(false);
       setTimelineSaved(true);
       setTimeout(() => setTimelineSaved(false), 2000);
 
@@ -1928,7 +1975,7 @@ export default function App() {
             {/* Back Button for Editor */}
             <div className="mb-4 shrink-0">
               <button
-                onClick={() => setView("home")}
+                onClick={handleBackToWorkouts}
                 className="flex items-center gap-2 text-text-muted hover:text-accent transition-colors text-sm"
               >
                 <ChevronLeft size={16} />
@@ -2899,6 +2946,20 @@ export default function App() {
           confirmVariant="danger"
           showOverlay={false}
           className="z-[200]"
+        />
+
+        <ConfirmModal
+          isOpen={showUnsavedChanges}
+          onClose={() => setShowUnsavedChanges(false)}
+          title="Unsaved Changes?"
+          message="You have unsaved changes. Save this workout before going back?"
+          cancelLabel="Don't Save"
+          confirmLabel="Save"
+          confirmVariant="solid"
+          onCancel={leaveWithoutSaving}
+          onConfirm={() => {
+            void handleSaveWorkout();
+          }}
         />
 
         {/* Login Prompt Dialog */}
