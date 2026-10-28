@@ -67,6 +67,7 @@ import {
 import type {
   Settings as FirebaseSettings,
   AudioLibraryEntry,
+  SavedWorkout,
 } from "./lib/firebaseSync";
 
 const createStarterIntervals = (): Interval[] => [
@@ -296,7 +297,7 @@ const IntervalCard = ({
         >
           {/* Full Height Drag Handle */}
           <div
-            onPointerDown={(e) => dragControls.start(e)}
+            onPointerDown={(e) => dragControls?.start(e)}
             className="w-10 flex items-center justify-center cursor-grab active:cursor-grabbing text-text-subtle hover:text-text-muted hover:bg-text-subtle/10 transition-all border-r border-text-subtle/5 shrink-0 touch-none"
           >
             <GripVertical size={20} />
@@ -995,9 +996,7 @@ export default function App() {
     null,
   );
   const [viewingNotesId, setViewingNotesId] = useState<string | null>(null);
-  const [savedWorkouts, setSavedWorkouts] = useState<
-    { id: string; title: string; intervals: Interval[] }[]
-  >([]);
+  const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [workoutToDelete, setWorkoutToDelete] = useState<{ id: string; title: string } | null>(null);
   const [showUnsavedChanges, setShowUnsavedChanges] = useState(false);
@@ -1379,11 +1378,7 @@ export default function App() {
   // Removed saveCurrentWorkout - no longer needed with new save flow
 
   const loadSavedWorkout = (
-    workout: {
-      id: string;
-      title: string;
-      intervals: Interval[];
-    },
+    workout: SavedWorkout,
     mode: "edit" | "start" = "edit"
   ) => {
     const normalizedWorkout = normalizeSavedWorkout(workout);
@@ -2475,7 +2470,9 @@ export default function App() {
                               return (
                                 <div
                                   key={interval.id}
-                                  ref={(el) => (intervalRefs.current[index] = el)}
+                                  ref={(el) => {
+                                    intervalRefs.current[index] = el;
+                                  }}
                                   className={cn(
                                     "flex flex-col items-center gap-1.5 flex-shrink-0",
                                     isMobileLandscape && "gap-1",

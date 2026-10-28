@@ -2,7 +2,7 @@ import React from "react";
 import { X } from "lucide-react";
 import { cn } from "../lib/utils";
 
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+export type ButtonProps = React.ComponentProps<"button"> & {
   variant?:
     | "primary"
     | "secondary"
