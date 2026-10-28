@@ -59,7 +59,7 @@ export function WorkoutHome({
       <div className="app-scroll pr-2 custom-scrollbar">
         <div className="mb-6">
           <h2 className="text-lg md:text-xl font-bold text-text-muted mb-2">
-            Your Workouts
+            Saved Workouts
           </h2>
           <p className="text-xs md:text-sm text-text-subtle">
             Tap GO to start, or Edit to customize
