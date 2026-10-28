@@ -2161,79 +2161,87 @@ export default function App() {
                     isMobileLandscape && "top-2.5 left-2.5 gap-1",
                   )}
                 >
-                  {showWorkoutTopControls && currentIntervalNotes && (
-                    <Button
-                      variant="accent"
-                      size="xs"
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        window.setTimeout(() => {
-                          if (currentIntervalId) {
-                            setViewingNotesId(currentIntervalId);
-                          }
-                        }, 0);
-                      }}
+                  {showWorkoutTopControls && (
+                    <div
                       className={cn(
-                        "h-6 px-2.5 text-[9px] rounded-full",
-                        isMobileLandscape && "h-5 px-2 text-[8px]",
+                        "flex items-center gap-2",
+                        isMobileLandscape && "gap-1.5",
                       )}
-                      title="View Interval Notes"
                     >
-                      <FileText size={isMobileLandscape ? 9 : 10} />
-                      Notes
-                    </Button>
-                  )}
-                  {showWorkoutTopControls &&
-                    (state === "running" || state === "paused") && (
-                      <div
-                        className={cn(
-                          "glass bg-text-subtle/5 rounded-full px-2 py-1 flex items-center gap-1.5",
-                          isMobileLandscape && "gap-1",
-                        )}
-                      >
-                        <Bell
-                          size={isMobileLandscape ? 10 : 11}
-                          className="text-text-subtle/70"
-                          aria-hidden="true"
-                        />
-                        <span
+                      {(state === "running" || state === "paused") && (
+                        <div
                           className={cn(
-                            "text-[9px] font-mono uppercase tracking-wider text-text-subtle/70",
-                            isMobileLandscape && "text-[7px]",
+                            "glass bg-text-subtle/5 rounded-full px-2 py-1 flex items-center gap-1.5",
+                            isMobileLandscape && "gap-1",
                           )}
                         >
-                          50%
-                        </span>
-                        <button
-                          onClick={toggleCurrentIntervalHalfwayAlert}
-                          className={cn(
-                            "w-8 h-4 rounded-full relative flex items-center",
-                            isMobileLandscape && "w-7 h-[14px]",
-                            currentHalfwayAlertEnabled ? "bg-accent" : "bg-text-subtle/40",
-                          )}
-                          aria-label={
-                            currentHalfwayAlertEnabled
-                              ? "Disable current interval halfway alert"
-                              : "Enable current interval halfway alert"
-                          }
-                          aria-pressed={currentHalfwayAlertEnabled}
-                          title="Toggle 50% alert for current interval"
-                        >
+                          <Bell
+                            size={isMobileLandscape ? 10 : 11}
+                            className="text-text-subtle/70"
+                            aria-hidden="true"
+                          />
                           <span
                             className={cn(
-                              "w-2.5 h-2.5 rounded-full bg-text",
-                              isMobileLandscape && "w-2 h-2",
-                              currentHalfwayAlertEnabled
-                                ? isMobileLandscape
-                                  ? "translate-x-3.5"
-                                  : "translate-x-4"
-                                : "translate-x-0.5",
+                              "text-[9px] font-mono uppercase tracking-wider text-text-subtle/70",
+                              isMobileLandscape && "text-[7px]",
                             )}
-                          />
-                        </button>
-                      </div>
-                    )}
+                          >
+                            50%
+                          </span>
+                          <button
+                            onClick={toggleCurrentIntervalHalfwayAlert}
+                            className={cn(
+                              "w-8 h-4 rounded-full relative flex items-center",
+                              isMobileLandscape && "w-7 h-[14px]",
+                              currentHalfwayAlertEnabled ? "bg-accent" : "bg-text-subtle/40",
+                            )}
+                            aria-label={
+                              currentHalfwayAlertEnabled
+                                ? "Disable current interval halfway alert"
+                                : "Enable current interval halfway alert"
+                            }
+                            aria-pressed={currentHalfwayAlertEnabled}
+                            title="Toggle 50% alert for current interval"
+                          >
+                            <span
+                              className={cn(
+                                "w-2.5 h-2.5 rounded-full bg-text",
+                                isMobileLandscape && "w-2 h-2",
+                                currentHalfwayAlertEnabled
+                                  ? isMobileLandscape
+                                    ? "translate-x-3.5"
+                                    : "translate-x-4"
+                                  : "translate-x-0.5",
+                              )}
+                            />
+                          </button>
+                        </div>
+                      )}
+                      {currentIntervalNotes && (
+                        <Button
+                          variant="accent"
+                          size="xs"
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            window.setTimeout(() => {
+                              if (currentIntervalId) {
+                                setViewingNotesId(currentIntervalId);
+                              }
+                            }, 0);
+                          }}
+                          className={cn(
+                            "h-6 px-2.5 text-[9px] rounded-full",
+                            isMobileLandscape && "h-5 px-2 text-[8px]",
+                          )}
+                          title="View Interval Notes"
+                        >
+                          <FileText size={isMobileLandscape ? 9 : 10} />
+                          Notes
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   <WorkoutDurationStat
                     state={state}
                     totalDuration={totalDuration}
@@ -2536,6 +2544,32 @@ export default function App() {
           title={<h2 className="text-xl sm:text-2xl font-bold tracking-tight">Settings</h2>}
           contentClassName="space-y-4 sm:space-y-6"
         >
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-text-subtle/60">
+              Settings are automatically saved
+            </span>
+            <div
+              className="flex items-center gap-1.5 text-xs text-accent shrink-0"
+              aria-live="polite"
+            >
+              {!user ? (
+                <>
+                  <Smartphone size={14} />
+                  <span>Saved on this device</span>
+                </>
+              ) : isSavingSettings ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={12} />
+                  <span>Synced to account</span>
+                </>
+              )}
+            </div>
+          </div>
 
           <section className="mt-6">
             <h3 className="text-xs font-mono text-text-subtle/60 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -2770,33 +2804,6 @@ export default function App() {
                     )}
                   />
                 </button>
-              </div>
-
-              {/* Auto-save Status Indicator */}
-              <div className="pt-3 border-t border-text-subtle/10">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-text-subtle/60">
-                    Settings are automatically saved
-                  </span>
-                  <div className="flex items-center gap-1.5 text-xs text-accent">
-                    {!user ? (
-                      <>
-                        <Smartphone size={14} />
-                        <span>Saved on this device</span>
-                      </>
-                    ) : isSavingSettings ? (
-                      <>
-                        <Loader2 size={14} className="animate-spin" />
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 size={12} />
-                        <span>Synced to account</span>
-                      </>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
           </section>
