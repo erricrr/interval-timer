@@ -22,6 +22,28 @@ export interface Interval {
 
 export type WorkoutState = 'idle' | 'countdown' | 'running' | 'paused' | 'finished';
 
+export function getTotalDuration(intervals: Pick<Interval, "duration">[]): number {
+  return intervals.reduce((acc, interval) => acc + interval.duration, 0);
+}
+
+export function formatClock(totalSeconds: number): string {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const mins = Math.floor(safe / 60);
+  const secs = safe % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+export function getWorkoutDurationReadout(
+  state: WorkoutState,
+  totalDuration: number,
+  remainingSeconds: number,
+): { label: "Remaining" | "Total Duration"; seconds: number } {
+  if (state === "running" || state === "paused") {
+    return { label: "Remaining", seconds: remainingSeconds };
+  }
+  return { label: "Total Duration", seconds: totalDuration };
+}
+
 export interface ColorGroup {
   color: string;
   indices: number[]; // All interval indices with this color

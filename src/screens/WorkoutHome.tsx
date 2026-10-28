@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { Play, Edit, Copy, Plus, Timer, MinusCircle } from "lucide-react";
 import { Button } from "../components/Button";
 import type { SavedWorkout } from "../lib/firebaseSync";
+import { getTotalDuration } from "../lib/utils";
 
 interface WorkoutHomeProps {
   savedWorkouts: SavedWorkout[];
@@ -67,10 +68,7 @@ export function WorkoutHome({
 
         <div className="space-y-3 pr-2 pb-4">
           {savedWorkouts.map((workout) => {
-          const totalSeconds = workout.intervals.reduce(
-            (acc, i) => acc + i.duration,
-            0
-          );
+          const totalSeconds = getTotalDuration(workout.intervals);
           const mins = Math.floor(totalSeconds / 60);
           const secs = totalSeconds % 60;
 

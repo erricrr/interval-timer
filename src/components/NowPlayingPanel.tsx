@@ -1,6 +1,6 @@
 import React from "react";
 import { Music, SkipBack, SkipForward, VolumeX } from "lucide-react";
-import { cn } from "../lib/utils";
+import { cn, formatClock } from "../lib/utils";
 import { Button } from "./Button";
 
 export interface SongInfo {
@@ -128,18 +128,8 @@ export function NowPlayingPanel({
             isMobileLandscape && "text-[9px]",
           )}
         >
-          <span>
-            {Math.floor(song.currentTime / 60)}:
-            {Math.floor(song.currentTime % 60)
-              .toString()
-              .padStart(2, "0")}
-          </span>
-          <span>
-            {Math.floor(song.duration / 60)}:
-            {Math.floor(song.duration % 60)
-              .toString()
-              .padStart(2, "0")}
-          </span>
+          <span>{formatClock(song.currentTime)}</span>
+          <span>{formatClock(song.duration)}</span>
         </div>
       </div>
 

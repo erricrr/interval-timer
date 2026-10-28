@@ -36,7 +36,7 @@ import {
   Loader2,
   Smartphone,
 } from "lucide-react";
-import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup, PlaylistTrack } from "./lib/utils";
+import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup, PlaylistTrack, formatClock, getTotalDuration } from "./lib/utils";
 import { audioEngine } from "./lib/audio";
 import { useWorkoutTimer, type WorkoutSyncRef } from "./hooks/useWorkoutTimer";
 import { useAudioLifecycle } from "./hooks/useAudioLifecycle";
@@ -48,6 +48,7 @@ import { Modal, ConfirmModal, LoginModal } from "./components/Modal";
 import { Button, CloseButton, type ButtonProps } from "./components/Button";
 import { Overlay } from "./components/Overlay";
 import { NowPlayingPanel, type SongInfo } from "./components/NowPlayingPanel";
+import { WorkoutDurationStat } from "./components/WorkoutDurationStat";
 import { useAuth } from "./contexts/AuthContext";
 import { WorkoutHome } from "./screens/WorkoutHome";
 import {
@@ -1506,10 +1507,7 @@ export default function App() {
     return currentInterval?.color || "#F27D26";
   }, [state, currentInterval]);
   const hasCurrentInterval = Boolean(currentInterval);
-  const totalDuration = useMemo(
-    () => intervals.reduce((acc, i) => acc + i.duration, 0),
-    [intervals],
-  );
+  const totalDuration = useMemo(() => getTotalDuration(intervals), [intervals]);
   const remainingTotalDuration = Math.max(0, totalDuration - totalTimeElapsed);
   const safeTimeLeft = Math.max(0, timeLeft);
   const currentIntervalDuration = currentInterval?.duration ?? 0;
@@ -2004,22 +2002,11 @@ export default function App() {
               />
             </div>
             <div className="grid grid-cols-3 items-end mt-1">
-              <div className="min-w-0 text-left">
-                <p className="text-[10px] text-text-subtle font-mono uppercase tracking-widest">
-                  {state === "running" ||
-                  state === "paused" ||
-                  state === "countdown"
-                    ? "Remaining"
-                    : "Total Duration"}
-                </p>
-                <p className="text-lg font-mono text-text-muted">
-                  {state === "running" ||
-                  state === "paused" ||
-                  state === "countdown"
-                    ? `${Math.floor(remainingTotalDuration / 60)}:${(remainingTotalDuration % 60).toString().padStart(2, "0")}`
-                    : `${Math.floor(totalDuration / 60)}:${(totalDuration % 60).toString().padStart(2, "0")}`}
-                </p>
-              </div>
+              <WorkoutDurationStat
+                state={state}
+                totalDuration={totalDuration}
+                remainingSeconds={remainingTotalDuration}
+              />
 
               <div className="flex justify-center">
                 <EditorHeaderAction onClick={addInterval}>
@@ -2175,37 +2162,37 @@ export default function App() {
                   <X size={isMobileLandscape ? 18 : 24} />
                 </button>
 
-                {showWorkoutTopControls && (
-                  <div
-                    className={cn(
-                      "absolute top-4 left-4 z-30 flex flex-col items-start gap-1.5",
-                      isMobileLandscape && "top-2.5 left-2.5 gap-1",
-                    )}
-                  >
-                    {currentIntervalNotes && (
-                      <Button
-                        variant="accent"
-                        size="xs"
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          window.setTimeout(() => {
-                            if (currentIntervalId) {
-                              setViewingNotesId(currentIntervalId);
-                            }
-                          }, 0);
-                        }}
-                        className={cn(
-                          "h-6 px-2.5 text-[9px] rounded-full",
-                          isMobileLandscape && "h-5 px-2 text-[8px]",
-                        )}
-                        title="View Interval Notes"
-                      >
-                        <FileText size={isMobileLandscape ? 9 : 10} />
-                        Notes
-                      </Button>
-                    )}
-                    {(state === "running" || state === "paused") && (
+                <div
+                  className={cn(
+                    "absolute top-4 left-4 z-30 flex flex-col items-start gap-1.5",
+                    isMobileLandscape && "top-2.5 left-2.5 gap-1",
+                  )}
+                >
+                  {showWorkoutTopControls && currentIntervalNotes && (
+                    <Button
+                      variant="accent"
+                      size="xs"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        window.setTimeout(() => {
+                          if (currentIntervalId) {
+                            setViewingNotesId(currentIntervalId);
+                          }
+                        }, 0);
+                      }}
+                      className={cn(
+                        "h-6 px-2.5 text-[9px] rounded-full",
+                        isMobileLandscape && "h-5 px-2 text-[8px]",
+                      )}
+                      title="View Interval Notes"
+                    >
+                      <FileText size={isMobileLandscape ? 9 : 10} />
+                      Notes
+                    </Button>
+                  )}
+                  {showWorkoutTopControls &&
+                    (state === "running" || state === "paused") && (
                       <div
                         className={cn(
                           "glass bg-text-subtle/5 rounded-full px-2 py-1 flex items-center gap-1.5",
@@ -2254,8 +2241,13 @@ export default function App() {
                         </button>
                       </div>
                     )}
-                  </div>
-                )}
+                  <WorkoutDurationStat
+                    state={state}
+                    totalDuration={totalDuration}
+                    remainingSeconds={remainingTotalDuration}
+                    compact={isMobileLandscape}
+                  />
+                </div>
 
                 <AnimatePresence mode="wait" initial={false}>
                   {isCountdownState ? (
@@ -2375,8 +2367,7 @@ export default function App() {
                         isMobileLandscape && "text-4xl",
                       )}
                     >
-                      {Math.floor(safeTimeLeft / 60)}:
-                      {(safeTimeLeft % 60).toString().padStart(2, "0")}
+                      {formatClock(safeTimeLeft)}
                     </p>
                   </div>
                 </div>
