@@ -1986,25 +1986,23 @@ export default function App() {
           />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
-            {/* Back Button for Editor */}
-            <div className="mb-4 shrink-0">
+            {/* Workout Title & Duration - pinned above the list scroller */}
+        <div className="shrink-0 z-30 bg-bg/95 backdrop-blur-md py-2 border-b border-text-subtle/10 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-12 lg:px-12">
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={handleBackToWorkouts}
-                className="flex items-center gap-2 text-text-muted hover:text-accent transition-colors text-sm"
+                className="flex items-center gap-1 shrink-0 text-text-muted hover:text-accent transition-colors text-sm whitespace-nowrap"
               >
                 <ChevronLeft size={16} />
                 Back to Workouts
               </button>
+              <input
+                value={workoutTitle}
+                onChange={(e) => setWorkoutTitle(e.target.value)}
+                className="min-w-0 flex-1 text-right text-lg md:text-xl lg:text-2xl font-black tracking-tighter text-accent bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg uppercase truncate"
+                aria-label="Workout title"
+              />
             </div>
-
-            {/* Workout Title & Duration - pinned above the list scroller */}
-        <div className="shrink-0 z-30 bg-bg/95 backdrop-blur-md py-3 border-b border-text-subtle/10 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-12 lg:px-12">
-            <input
-              value={workoutTitle}
-              onChange={(e) => setWorkoutTitle(e.target.value)}
-              className="text-xl md:text-2xl lg:text-3xl font-black tracking-tighter text-accent bg-transparent border-none p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg w-full uppercase truncate"
-              aria-label="Workout title"
-            />
             <div className="grid grid-cols-3 items-end mt-1">
               <div className="min-w-0 text-left">
                 <p className="text-[10px] text-text-subtle font-mono uppercase tracking-widest">
