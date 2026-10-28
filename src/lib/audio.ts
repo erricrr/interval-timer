@@ -167,6 +167,15 @@ class AudioEngine {
     );
   }
 
+  /** Swap the loaded track without starting playback (paused skip / paused interval change). */
+  private loadCurrentTrackWithoutPlaying(): void {
+    const track = this.getCurrentPlaylistTrack();
+    if (!track) return;
+    const entry = this.trackEntries.get(track.audioId);
+    if (!entry?.url) return;
+    this.setPlaylistTrackSource(track.audioId, entry.url);
+  }
+
   /** Call synchronously from Start tap — required for iOS to allow play() after countdown */
   primePlaybackFromUserGesture(): void {
     this.init();
@@ -448,6 +457,19 @@ class AudioEngine {
     this.playTrackAtOffset(track.audioId, entry.url, this.playlistState.currentOffset);
   }
 
+  /** True when the paused playlist is already the given tracks (resume instead of restart). */
+  isPausedPlaylistFor(playlist: PlaylistTrack[]): boolean {
+    if (!this.playlistState?.isPaused) return false;
+    const currentIds = this.playlistState.playlist.map((track) => track.audioId);
+    const nextIds = playlist
+      .filter((track) => this.trackEntries.get(track.audioId)?.url)
+      .map((track) => track.audioId);
+    return (
+      currentIds.length === nextIds.length &&
+      currentIds.every((id, index) => id === nextIds[index])
+    );
+  }
+
   /** Which track id is loaded on the media element (avoid redundant src sets). */
   private currentPlaylistTrackId: string | null = null;
 
@@ -483,12 +505,7 @@ class AudioEngine {
     this.playlistState.currentIndex = normalizedIndex;
     this.playlistState.currentOffset = 0;
     if (this.playlistState.isPaused) {
-      // Keep paused state intact: swap loaded track without starting playback.
-      const track = this.getCurrentPlaylistTrack();
-      if (!track) return true;
-      const entry = this.trackEntries.get(track.audioId);
-      if (!entry?.url) return true;
-      this.setPlaylistTrackSource(track.audioId, entry.url);
+      this.loadCurrentTrackWithoutPlaying();
       return true;
     }
     this.playNextInPlaylist();
@@ -827,7 +844,11 @@ class AudioEngine {
     this.playStart();
   }
 
-  playPlaylist(playlist: PlaylistTrack[], intervalDurationSeconds: number) {
+  playPlaylist(
+    playlist: PlaylistTrack[],
+    intervalDurationSeconds: number,
+    options?: { startPaused?: boolean },
+  ) {
     this.stopAll();
     if (!playlist || playlist.length === 0) return;
 
@@ -850,23 +871,29 @@ class AudioEngine {
     const shouldLoop =
       totalPlaylistDuration === 0 ||
       totalPlaylistDuration < intervalDurationSeconds;
+    const startPaused = options?.startPaused ?? false;
 
     this.playlistState = {
       playlist: withUrl,
       intervalDuration: intervalDurationSeconds,
       currentIndex: 0,
       currentOffset: 0,
-      isPaused: false,
+      isPaused: startPaused,
       shouldLoop,
       currentGroupIndex: -1,
       groupStartTime: 0,
     };
 
+    if (startPaused) {
+      this.loadCurrentTrackWithoutPlaying();
+      return;
+    }
+
     this.playNextInPlaylist();
   }
 
   getCurrentSongInfo() {
-    if (!this.playlistState || !this.playlistAudio?.src) return null;
+    if (!this.playlistState) return null;
 
     const track = this.getCurrentPlaylistTrack();
     if (!track) return null;
@@ -875,15 +902,17 @@ class AudioEngine {
     if (!entry) return null;
 
     const el = this.playlistAudio;
+    const src = el?.currentSrc || el?.src || "";
+    const srcReady = !!el && !this.isPrimingOrEmptySrc(src);
     const duration =
-      Number.isFinite(el.duration) && el.duration > 0
+      srcReady && el && Number.isFinite(el.duration) && el.duration > 0
         ? el.duration
         : entry.duration;
 
     return {
       name: entry.name,
       duration,
-      currentTime: el.currentTime,
+      currentTime: srcReady && el ? el.currentTime : this.playlistState.currentOffset,
       index: this.playlistState.currentIndex,
       totalSongs: this.playlistState.playlist.length,
     };

@@ -1,7 +1,7 @@
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { ColorGroup, Interval, WorkoutState } from "../lib/utils";
-import { getGroupForInterval } from "../lib/utils";
 import { audioEngine } from "../lib/audio";
+import { applyGroupPlaylist } from "./useWorkoutAudio";
 
 export type WorkoutSyncRef = {
   intervals: Interval[];
@@ -56,14 +56,7 @@ export function useWorkoutTimer({
         setCurrentIndex(0);
         setTimeLeft(ivs[0].duration);
         audioEngine.playStart();
-
-        const firstGroup = cgs[0];
-        if (firstGroup && firstGroup.mergedPlaylist.length > 0) {
-          audioEngine.playPlaylist(
-            firstGroup.mergedPlaylist,
-            firstGroup.totalDuration,
-          );
-        }
+        applyGroupPlaylist(cgs, ivs[0].color);
         return 0;
       });
     }, 1000);
@@ -136,16 +129,7 @@ export function useWorkoutTimer({
               audioEngine.stopAll();
               window.setTimeout(() => {
                 audioEngine.playStart();
-                const nextGroup = getGroupForInterval(
-                  w.colorGroups,
-                  nextInterval.color,
-                );
-                if (nextGroup && nextGroup.mergedPlaylist.length > 0) {
-                  audioEngine.playPlaylist(
-                    nextGroup.mergedPlaylist,
-                    nextGroup.totalDuration,
-                  );
-                }
+                applyGroupPlaylist(w.colorGroups, nextInterval.color);
               }, 500);
             }
             return nextInterval.duration;

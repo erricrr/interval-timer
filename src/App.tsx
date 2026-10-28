@@ -1124,7 +1124,7 @@ export default function App() {
   };
 
   useAudioLifecycle();
-  const { startPlaylistForGroup } = useWorkoutAudio();
+  const { syncPlaylistOnIntervalChange, resumeGroupPlaylist } = useWorkoutAudio();
   useWorkoutTimer({
     state,
     setState,
@@ -1548,7 +1548,7 @@ export default function App() {
       audioEngine.playCountdown(3);
     } else if (state === "paused") {
       setState("running");
-      audioEngine.resumePlaylist();
+      resumeGroupPlaylist(colorGroups, intervals[currentIndex]?.color ?? "");
     }
   };
 
@@ -1656,43 +1656,40 @@ export default function App() {
     }
   };
 
-  const previousInterval = () => {
-    if (currentIndex > 0) {
-      const prevIndex = currentIndex - 1;
-      const prev = intervals[prevIndex];
-
-      setCurrentIndex(prevIndex);
-      setTimeLeft(prev.duration);
-      audioEngine.stopAll();
-
-      // Only start audio if currently running, not paused
-      if (state === "running") {
-        audioEngine.playStart();
-        startPlaylistForGroup(colorGroups, prev.color);
-      }
-    }
+  const refreshCurrentSong = () => {
+    setCurrentSong(audioEngine.getCurrentSongInfo());
   };
 
-  const nextInterval = () => {
-    if (currentIndex < intervals.length - 1) {
-      const nextIndex = currentIndex + 1;
-      const next = intervals[nextIndex];
+  const jumpInterval = (step: number) => {
+    const targetIndex = currentIndex + step;
+    if (targetIndex < 0) return;
 
-      setCurrentIndex(nextIndex);
-      setTimeLeft(next.duration);
-      audioEngine.stopAll();
-
-      // Only start audio if currently running, not paused
-      if (state === "running") {
-        audioEngine.playStart();
-        startPlaylistForGroup(colorGroups, next.color);
-      }
-    } else {
+    if (targetIndex >= intervals.length) {
       audioEngine.playWorkoutComplete();
       audioEngine.stopAll();
       setState("finished");
+      return;
     }
+
+    const fromColor = intervals[currentIndex].color;
+    const toInterval = intervals[targetIndex];
+    const isPaused = state === "paused";
+
+    setCurrentIndex(targetIndex);
+    setTimeLeft(toInterval.duration);
+
+    if (state === "running") {
+      audioEngine.playStart();
+    }
+
+    syncPlaylistOnIntervalChange(colorGroups, fromColor, toInterval.color, {
+      startPaused: isPaused,
+    });
+    refreshCurrentSong();
   };
+
+  const previousInterval = () => jumpInterval(-1);
+  const nextInterval = () => jumpInterval(1);
 
   const skipTrack = (direction: "previous" | "next") => {
     const didSkip =
@@ -1700,7 +1697,7 @@ export default function App() {
         ? audioEngine.skipToPreviousTrack()
         : audioEngine.skipToNextTrack();
     if (didSkip) {
-      setCurrentSong(audioEngine.getCurrentSongInfo());
+      refreshCurrentSong();
     }
   };
 
