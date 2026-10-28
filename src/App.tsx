@@ -1028,6 +1028,8 @@ export default function App() {
   // Save confirmation states
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [timelineSaved, setTimelineSaved] = useState(false);
+  const [notesAutosaved, setNotesAutosaved] = useState(false);
+  const notesAutosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Theme state - initialize from system preference or localStorage
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -1093,6 +1095,16 @@ export default function App() {
       };
     }
   }, [viewingNotesId, isMobile]);
+
+  useEffect(() => {
+    if (viewingNotesId) return;
+
+    setNotesAutosaved(false);
+    if (notesAutosaveTimeoutRef.current) {
+      clearTimeout(notesAutosaveTimeoutRef.current);
+      notesAutosaveTimeoutRef.current = null;
+    }
+  }, [viewingNotesId]);
 
   // Compute color groups from intervals
   const colorGroups = useMemo(() => buildColorGroups(intervals, audioLibrary), [intervals, audioLibrary]);
@@ -2908,15 +2920,41 @@ export default function App() {
               <textarea
                 autoFocus={!isMobile}
                 value={intervals.find((i) => i.id === viewingNotesId)?.notes || ""}
-                onChange={(e) =>
-                  updateInterval(viewingNotesId, { notes: e.target.value })
-                }
+                onChange={(e) => {
+                  updateInterval(viewingNotesId, { notes: e.target.value });
+                  setNotesAutosaved(true);
+                  if (notesAutosaveTimeoutRef.current) {
+                    clearTimeout(notesAutosaveTimeoutRef.current);
+                  }
+                  notesAutosaveTimeoutRef.current = setTimeout(() => {
+                    setNotesAutosaved(false);
+                    notesAutosaveTimeoutRef.current = null;
+                  }, 2000);
+                }}
                 placeholder="Add notes for this interval..."
                 className="w-full h-32 bg-text-subtle/10 border rounded-lg p-3 text-base text-text-muted/90 focus:outline-none resize-none placeholder:text-text-subtle/20 transition-all focus:ring-2 focus:border-transparent"
                 style={{
                   borderColor: `${intervals.find((i) => i.id === viewingNotesId)?.color || "#ffffff"}20`,
                 }}
               />
+              <div
+                className="mt-2 flex items-center gap-1.5 text-xs text-text-subtle/60"
+                aria-live="polite"
+              >
+                <CheckCircle2
+                  size={12}
+                  className={cn(
+                    "shrink-0",
+                    notesAutosaved ? "text-accent" : "text-accent/70",
+                  )}
+                  aria-hidden="true"
+                />
+                <span className={notesAutosaved ? "text-accent" : undefined}>
+                  {notesAutosaved
+                    ? "Saved"
+                    : "Notes are saved automatically"}
+                </span>
+              </div>
             </>
           )}
         </Modal>
