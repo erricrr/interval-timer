@@ -1,5 +1,5 @@
 /**
- * Audio Engine for TempoTread
+ * Audio Engine for Interval Timer
  * - Alarms: Web Audio API (oscillators / short decoded custom alarm buffer)
  * - Playlist music: HTMLAudioElement native output + volume (streams; no full PCM). Uses
  *   crossOrigin=anonymous so Firebase Storage URLs load with CORS; avoids MediaElementSource

@@ -1950,7 +1950,7 @@ export default function App() {
             <div className="flex items-center gap-2 text-accent">
               <Timer size={24} />
               <span className="text-lg font-black tracking-tight uppercase">
-                TempoTread
+                Interval Timer
               </span>
             </div>
 

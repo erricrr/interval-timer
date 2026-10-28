@@ -1,6 +1,6 @@
 {
-  "short_name": "TempoTread",
-  "name": "TempoTread Interval Timer",
+  "short_name": "Interval Timer",
+  "name": "Interval Timer",
   "icons": [
     {
       "src": "/favicon-192x192.png",

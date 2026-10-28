@@ -1,4 +1,4 @@
-# TempoTread — Interval Timer
+# Interval Timer
 
 I built this because I couldn't find an interval timer that worked the way I needed. Every app I tried either:
 
