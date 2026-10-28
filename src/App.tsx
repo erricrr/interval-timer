@@ -20,7 +20,7 @@ import {
   Upload,
   FileText,
   Copy,
-  Save,
+  Bookmark,
   SkipForward,
   SkipBack,
   GripVertical,
@@ -2035,7 +2035,7 @@ export default function App() {
                   variant="accent"
                   onClick={handleSaveWorkout}
                 >
-                  <Save size={12} />
+                  <Bookmark size={12} />
                   {timelineSaved ? "Saved!" : "Save"}
                 </EditorHeaderAction>
               </div>
