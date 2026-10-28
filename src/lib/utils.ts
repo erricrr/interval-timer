@@ -26,6 +26,15 @@ export function getTotalDuration(intervals: Pick<Interval, "duration">[]): numbe
   return intervals.reduce((acc, interval) => acc + interval.duration, 0);
 }
 
+/** Remaining workout time from the current interval's clock plus every interval after it. */
+export function getRemainingDuration(
+  intervals: Pick<Interval, "duration">[],
+  currentIndex: number,
+  timeLeft: number,
+): number {
+  return Math.max(0, timeLeft) + getTotalDuration(intervals.slice(currentIndex + 1));
+}
+
 export function formatClock(totalSeconds: number): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
   const mins = Math.floor(safe / 60);

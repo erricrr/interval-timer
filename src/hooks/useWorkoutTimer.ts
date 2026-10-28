@@ -16,7 +16,6 @@ type Params = {
   setCountdownValue: Dispatch<SetStateAction<number>>;
   setCurrentIndex: Dispatch<SetStateAction<number>>;
   setTimeLeft: Dispatch<SetStateAction<number>>;
-  setTotalTimeElapsed: Dispatch<SetStateAction<number>>;
   workoutSyncRef: MutableRefObject<WorkoutSyncRef>;
 };
 
@@ -30,7 +29,6 @@ export function useWorkoutTimer({
   setCountdownValue,
   setCurrentIndex,
   setTimeLeft,
-  setTotalTimeElapsed,
   workoutSyncRef,
 }: Params) {
   // Countdown 3-2-1
@@ -140,9 +138,8 @@ export function useWorkoutTimer({
         }
         return next;
       });
-      setTotalTimeElapsed((p) => p + 1);
     }, 1000);
 
     return () => window.clearInterval(id);
-  }, [state, setTimeLeft, setTotalTimeElapsed, setCurrentIndex, setState, workoutSyncRef]);
+  }, [state, setTimeLeft, setCurrentIndex, setState, workoutSyncRef]);
 }

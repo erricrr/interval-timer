@@ -36,7 +36,7 @@ import {
   Loader2,
   Smartphone,
 } from "lucide-react";
-import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup, PlaylistTrack, formatClock, getTotalDuration } from "./lib/utils";
+import { cn, Interval, WorkoutState, COLORS, buildColorGroups, getGroupForInterval, ColorGroup, PlaylistTrack, formatClock, getTotalDuration, getRemainingDuration } from "./lib/utils";
 import { audioEngine } from "./lib/audio";
 import { useWorkoutTimer, type WorkoutSyncRef } from "./hooks/useWorkoutTimer";
 import { useAudioLifecycle } from "./hooks/useAudioLifecycle";
@@ -986,7 +986,6 @@ export default function App() {
   const [countdownValue, setCountdownValue] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [totalTimeElapsed, setTotalTimeElapsed] = useState(0);
   const [currentSong, setCurrentSong] = useState<SongInfo | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [audioLibrary, setAudioLibrary] = useState<
@@ -1131,7 +1130,6 @@ export default function App() {
     setCountdownValue,
     setCurrentIndex,
     setTimeLeft,
-    setTotalTimeElapsed,
     workoutSyncRef,
   });
 
@@ -1508,7 +1506,11 @@ export default function App() {
   }, [state, currentInterval]);
   const hasCurrentInterval = Boolean(currentInterval);
   const totalDuration = useMemo(() => getTotalDuration(intervals), [intervals]);
-  const remainingTotalDuration = Math.max(0, totalDuration - totalTimeElapsed);
+  const remainingTotalDuration = getRemainingDuration(
+    intervals,
+    currentIndex,
+    timeLeft,
+  );
   const safeTimeLeft = Math.max(0, timeLeft);
   const currentIntervalDuration = currentInterval?.duration ?? 0;
   const currentIntervalNotes = currentInterval?.notes ?? "";
@@ -1561,7 +1563,6 @@ export default function App() {
     setState("idle");
     setCurrentIndex(0);
     setTimeLeft(0);
-    setTotalTimeElapsed(0);
     setCountdownValue(0);
     audioEngine.stopAll();
     // Return to home after finishing/closing workout
